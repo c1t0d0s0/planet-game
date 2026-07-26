@@ -14,7 +14,7 @@ Merge 2 identical celestial bodies to evolve into the next level:
 2. **Mercury (水星)** - `+4 pts` (Metallic gray rocky planet)
 3. **Mars (火星)** - `+8 pts` (Rusty red planet)
 4. **Venus (金星)** - `+16 pts` (Golden atmosphere planet)
-5. **Earth (Earth / 地球)** - `+32 pts` (Blue ocean with continents and atmosphere rim)
+5. **Earth (地球)** - `+32 pts` (Blue ocean with continents and atmosphere rim)
 6. **Neptune (海王星)** - `+64 pts` (Deep indigo gas giant)
 7. **Uranus (天王星)** - `+128 pts` (Cyan icy planet)
 8. **Saturn (土星)** - `+256 pts` (3D tilted ring depth effect)
