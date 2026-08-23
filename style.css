@@ -196,6 +196,22 @@ html, body {
   transition: all 0.2s ease;
 }
 
+.icon-btn.text-btn {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 0.72rem;
+  letter-spacing: 0.5px;
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.icon-btn.text-btn:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+}
+
 .icon-btn:hover {
   background: rgba(255, 255, 255, 0.15);
   transform: translateY(-1px);

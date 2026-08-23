@@ -120,6 +120,170 @@
     }
   ];
 
+  // --- INTERNATIONALIZATION (i18n) ---
+  function detectInitialLanguage() {
+    // 1. URL search param (?lang=en or ?lang=ja)
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const qLang = params.get('lang');
+      if (qLang) {
+        return qLang.toLowerCase().startsWith('ja') ? 'ja' : 'en';
+      }
+    } catch (e) {}
+
+    // 2. Saved preference in LocalStorage
+    try {
+      const savedLang = localStorage.getItem('planet_merge_lang');
+      if (savedLang) {
+        return savedLang === 'ja' ? 'ja' : 'en';
+      }
+    } catch (e) {}
+
+    // 3. navigator.language (Primary browser UI language)
+    const navLang = navigator.language || navigator.userLanguage;
+    if (navLang) {
+      return navLang.toLowerCase().startsWith('ja') ? 'ja' : 'en';
+    }
+
+    // 4. navigator.languages
+    if (navigator.languages && navigator.languages.length > 0) {
+      return navigator.languages[0].toLowerCase().startsWith('ja') ? 'ja' : 'en';
+    }
+
+    return 'en';
+  }
+
+  let currentLang = detectInitialLanguage();
+  let isJapanese = currentLang === 'ja';
+
+  const TEXTS = {
+    ja: {
+      title: 'PLANET MERGE - 惑星合体ゲーム',
+      metaDesc: '駅から宇宙へ！月から太陽まで合体させてハイスコアを目指そう！スイカゲーム風の宇宙テーマ惑星合体物理パズルゲーム。',
+      subtitle: '惑星合体ゲーム',
+      soundTitle: 'サウンド切替',
+      infoTitle: '遊び方',
+      restartTitle: 'リスタート',
+      langTitle: '英語に切替 (Switch to English)',
+      nextLabel: 'NEXT:',
+      controlsHint: '画面をタップまたはクリックして惑星を落とそう！',
+      infoModalTitle: '遊び方 ＆ 惑星進化表',
+      infoDesc: '同じ惑星同士をぶつけると合体して1つ大きな惑星に進化します！太陽同士をぶつけると大消滅して大量ボーナス獲得！上限ラインを超えないようにハイスコアを目指しましょう。',
+      btnStart: 'プレイ開始',
+      gameOverTitle: 'GAME OVER',
+      gameOverSub: '惑星が溢れてしまいました！',
+      scoreLabel: 'スコア',
+      bestLabel: 'ハイスコア',
+      maxPlanetLabel: '到達レベル',
+      btnPlayAgain: 'もう一度プレイ',
+      sunCreated: '☀️ 太陽誕生！ BONUS +5000',
+      doubleSunMerge: '☀️☀️ 太陽消滅合体！ SUPER BONUS +10000'
+    },
+    en: {
+      title: 'PLANET MERGE - Space Planet Merge Puzzle',
+      metaDesc: 'Merge cosmic planets from Moon to Sun to achieve high scores! A space-themed physics puzzle game.',
+      subtitle: 'Planet Merge Game',
+      soundTitle: 'Sound Toggle',
+      infoTitle: 'How to Play',
+      restartTitle: 'Restart Game',
+      langTitle: 'Switch to Japanese (日本語に切替)',
+      nextLabel: 'NEXT:',
+      controlsHint: 'Tap or click to drop planets!',
+      infoModalTitle: 'How to Play & Evolution Chart',
+      infoDesc: 'Collide matching planets to merge them into larger ones! Merge two Suns for a Super Bonus burst! Keep planets below the danger line and aim for high scores.',
+      btnStart: 'Start Game',
+      gameOverTitle: 'GAME OVER',
+      gameOverSub: 'Planets overflowed the danger line!',
+      scoreLabel: 'SCORE',
+      bestLabel: 'BEST',
+      maxPlanetLabel: 'HIGHEST PLANET',
+      btnPlayAgain: 'Play Again',
+      sunCreated: '☀️ SUN CREATED! BONUS +5000',
+      doubleSunMerge: '☀️☀️ SUPER SUN BURST! +10000'
+    }
+  };
+
+  function getI18N() {
+    return isJapanese ? TEXTS.ja : TEXTS.en;
+  }
+
+  function getPlanetDisplayName(planetDef) {
+    if (!planetDef) return '';
+    return isJapanese ? planetDef.name : planetDef.enName;
+  }
+
+  function toggleLanguage() {
+    currentLang = currentLang === 'ja' ? 'en' : 'ja';
+    isJapanese = currentLang === 'ja';
+    try {
+      localStorage.setItem('planet_merge_lang', currentLang);
+    } catch (e) {}
+    applyI18n();
+    updateNextPlanetUI();
+    if (elGameOverModal && !elGameOverModal.classList.contains('hidden')) {
+      elMaxPlanetReached.textContent = getPlanetDisplayName(PLANETS[maxLevelReached]);
+    }
+    renderEvolutionCanvases();
+  }
+
+  function applyI18n() {
+    const t = getI18N();
+    document.title = t.title;
+    document.documentElement.lang = currentLang;
+
+    const elMeta = document.querySelector('meta[name="description"]');
+    if (elMeta) elMeta.setAttribute('content', t.metaDesc);
+
+    const elSub = document.querySelector('.game-subtitle');
+    if (elSub) elSub.textContent = t.subtitle;
+
+    const elPreviewLabel = document.querySelector('.preview-label');
+    if (elPreviewLabel) elPreviewLabel.textContent = t.nextLabel;
+
+    const btnLang = document.getElementById('btn-lang');
+    if (btnLang) {
+      btnLang.textContent = isJapanese ? 'EN' : 'JA';
+      btnLang.setAttribute('title', t.langTitle);
+      btnLang.setAttribute('aria-label', t.langTitle);
+    }
+
+    if (btnSound) btnSound.setAttribute('title', t.soundTitle);
+    if (btnInfo) btnInfo.setAttribute('title', t.infoTitle);
+    if (btnRestart) btnRestart.setAttribute('title', t.restartTitle);
+
+    const elHint = document.querySelector('.controls-hint span');
+    if (elHint) elHint.textContent = t.controlsHint;
+
+    const elInfoTitle = document.querySelector('#info-modal .modal-header h2');
+    if (elInfoTitle) elInfoTitle.textContent = t.infoModalTitle;
+
+    const elInfoDesc = document.querySelector('#info-modal .info-desc');
+    if (elInfoDesc) elInfoDesc.textContent = t.infoDesc;
+
+    if (btnStartGame) btnStartGame.textContent = t.btnStart;
+
+    const elGOSub = document.querySelector('#gameover-modal .gameover-sub');
+    if (elGOSub) elGOSub.textContent = t.gameOverSub;
+
+    const scoreRows = document.querySelectorAll('#gameover-modal .score-row');
+    if (scoreRows.length >= 3) {
+      scoreRows[0].querySelector('span:first-child').textContent = t.scoreLabel;
+      scoreRows[1].querySelector('span:first-child').textContent = t.bestLabel;
+      scoreRows[2].querySelector('span:first-child').textContent = t.maxPlanetLabel;
+    }
+
+    if (btnPlayAgain) btnPlayAgain.textContent = t.btnPlayAgain;
+
+    // Update Evolution Chart Names
+    const evoCards = document.querySelectorAll('.evolution-grid .evolution-card');
+    evoCards.forEach((card, idx) => {
+      const nameSpan = card.querySelector('.evo-name');
+      if (nameSpan && PLANETS[idx]) {
+        nameSpan.textContent = getPlanetDisplayName(PLANETS[idx]);
+      }
+    });
+  }
+
   // --- 2. GAME STATE & CONSTANTS ---
   const CANVAS_WIDTH = 440;
   const CANVAS_HEIGHT = 660;
@@ -169,6 +333,7 @@
   const elMaxPlanetReached = document.getElementById('max-planet-reached');
 
   // Buttons
+  const btnLang = document.getElementById('btn-lang');
   const btnSound = document.getElementById('btn-sound');
   const btnInfo = document.getElementById('btn-info');
   const btnRestart = document.getElementById('btn-restart');
@@ -501,6 +666,9 @@
     // Setup background stars
     initStars();
 
+    // Apply Internationalization
+    applyI18n();
+
     // Setup input listeners
     setupInputs();
 
@@ -564,6 +732,13 @@
     container.addEventListener('touchend', handleDrop);
 
     // Header buttons
+    if (btnLang) {
+      btnLang.addEventListener('click', () => {
+        playClickSound();
+        toggleLanguage();
+      });
+    }
+
     btnSound.addEventListener('click', () => {
       playClickSound();
       isMuted = !isMuted;
@@ -769,7 +944,7 @@
 
     // Floating text banner
     floatingTexts.push({
-      text: '☀️ 太陽誕生！ BONUS +5000',
+      text: I18N.sunCreated,
       x: x,
       y: y - 20,
       vy: -1.4,
@@ -796,7 +971,7 @@
     shockwaves.push({ x: x, y: y, radius: 5, maxRadius: 260, color: 'rgba(249, 115, 22, 0.9)', alpha: 1.0 });
 
     floatingTexts.push({
-      text: '☀️☀️ 太陽消滅合体！ SUPER BONUS +10000',
+      text: I18N.doubleSunMerge,
       x: x,
       y: y - 20,
       vy: -1.6,
@@ -827,7 +1002,7 @@
     const nextDef = PLANETS[nextPlanetIndex];
     elNextBadge.style.backgroundColor = nextDef.color;
     elNextBadge.style.boxShadow = `0 0 12px ${nextDef.glow}`;
-    elNextName.textContent = nextDef.name;
+    elNextName.textContent = getPlanetDisplayName(nextDef);
   }
 
   function resetGame() {
@@ -871,7 +1046,7 @@
 
     elFinalScore.textContent = score;
     elFinalHighScore.textContent = highScore;
-    elMaxPlanetReached.textContent = PLANETS[maxLevelReached].name;
+    elMaxPlanetReached.textContent = getPlanetDisplayName(PLANETS[maxLevelReached]);
 
     elGameOverModal.classList.remove('hidden');
   }
@@ -1325,12 +1500,14 @@
 
       // Label / Name overlay inside planet
       ctx.fillStyle = '#ffffff';
-      ctx.font = `900 ${Math.floor(r * 0.38)}px 'Zen Kaku Gothic New', sans-serif`;
+      const sunFontScale = isJapanese ? 0.38 : 0.35;
+      const sunFontFam = isJapanese ? "'Zen Kaku Gothic New', sans-serif" : "'Orbitron', sans-serif";
+      ctx.font = `900 ${Math.floor(r * sunFontScale)}px ${sunFontFam}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.shadowColor = '#dc2626';
       ctx.shadowBlur = 12;
-      ctx.fillText(planetDef.name, 0, 0);
+      ctx.fillText(getPlanetDisplayName(planetDef), 0, 0);
 
       ctx.restore();
       return;
@@ -1379,13 +1556,15 @@
 
     // Label / Name overlay inside planet
     if (r >= 22) {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-      ctx.font = `bold ${Math.max(10, Math.floor(r * 0.35))}px 'Zen Kaku Gothic New', sans-serif`;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      const fontScale = isJapanese ? 0.35 : 0.26;
+      const fontFam = isJapanese ? "'Zen Kaku Gothic New', sans-serif" : "'Orbitron', sans-serif";
+      ctx.font = `bold ${Math.max(9, Math.floor(r * fontScale))}px ${fontFam}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowColor = 'rgba(0,0,0,0.85)';
       ctx.shadowBlur = 4;
-      ctx.fillText(planetDef.name, 0, 0);
+      ctx.fillText(getPlanetDisplayName(planetDef), 0, 0);
     }
 
     ctx.restore();
