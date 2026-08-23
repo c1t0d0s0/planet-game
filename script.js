@@ -167,8 +167,9 @@
       langTitle: '英語に切替 (Switch to English)',
       nextLabel: 'NEXT:',
       controlsHint: '画面をタップまたはクリックして惑星を落とそう！',
+      testMode: '[テストモード: 太陽合体] 太陽を落としてブラックホールを出現させよう！',
       infoModalTitle: '遊び方 ＆ 惑星進化表',
-      infoDesc: '同じ惑星同士をぶつけると合体して1つ大きな惑星に進化します！太陽同士をぶつけると大消滅して大量ボーナス獲得！上限ラインを超えないようにハイスコアを目指しましょう。',
+      infoDesc: '同じ惑星同士をぶつけると合体して1つ大きな惑星に進化します！太陽同士が合体するとブラックホールが出現し、盤面の全惑星を吸い込んで大消滅ボーナス獲得！上限ラインを超えないようにハイスコアを目指しましょう。',
       btnStart: 'プレイ開始',
       gameOverTitle: 'GAME OVER',
       gameOverSub: '惑星が溢れてしまいました！',
@@ -177,7 +178,8 @@
       maxPlanetLabel: '到達レベル',
       btnPlayAgain: 'もう一度プレイ',
       sunCreated: '☀️ 太陽誕生！ BONUS +5000',
-      doubleSunMerge: '☀️☀️ 太陽消滅合体！ SUPER BONUS +10000'
+      doubleSunMerge: '☀️☀️ 太陽合体！ ブラックホール覚醒！',
+      blackHoleClear: '🕳️ 超新星大爆発！ SUPER BONUS +15000'
     },
     en: {
       title: 'PLANET MERGE - Space Planet Merge Puzzle',
@@ -189,8 +191,9 @@
       langTitle: 'Switch to Japanese (日本語に切替)',
       nextLabel: 'NEXT:',
       controlsHint: 'Tap or click to drop planets!',
+      testMode: '[TEST MODE: SUN MERGE] Drop the Sun to spawn Black Hole!',
       infoModalTitle: 'How to Play & Evolution Chart',
-      infoDesc: 'Collide matching planets to merge them into larger ones! Merge two Suns for a Super Bonus burst! Keep planets below the danger line and aim for high scores.',
+      infoDesc: 'Collide matching planets to merge them into larger ones! When two Suns merge, a Black Hole spawns and sucks in all planets on screen for a massive Supernova Bonus! Keep planets below the danger line and aim for high scores.',
       btnStart: 'Start Game',
       gameOverTitle: 'GAME OVER',
       gameOverSub: 'Planets overflowed the danger line!',
@@ -199,7 +202,8 @@
       maxPlanetLabel: 'HIGHEST PLANET',
       btnPlayAgain: 'Play Again',
       sunCreated: '☀️ SUN CREATED! BONUS +5000',
-      doubleSunMerge: '☀️☀️ SUPER SUN BURST! +10000'
+      doubleSunMerge: '☀️☀️ SUN MERGE! BLACK HOLE AWAKENS!',
+      blackHoleClear: '🕳️ SUPERNOVA BURST! SUPER BONUS +15000'
     }
   };
 
@@ -319,6 +323,11 @@
   let particles = [];
   let stars = [];
   let isMuted = false;
+
+  // Black Hole State
+  let blackHole = null;
+  let isBlackHoleActive = false;
+  let screenFlashAlpha = 0;
 
   // DOM Elements
   const elCurrentScore = document.getElementById('current-score');
@@ -614,6 +623,129 @@
     } catch (e) {}
   }
 
+  function playBlackHoleStartSound() {
+    if (isMuted || !audioCtx) return;
+    try {
+      const now = audioCtx.currentTime;
+
+      // 1. Deep Sub-bass Gravitational Drone Sweep
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const filter = audioCtx.createBiquadFilter();
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(320, now);
+      filter.frequency.exponentialRampToValueAtTime(65, now + 1.8);
+      filter.Q.setValueAtTime(7.0, now);
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(115, now);
+      osc.frequency.exponentialRampToValueAtTime(34, now + 2.0);
+
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.linearRampToValueAtTime(0.38, now + 0.35);
+      gain.gain.exponentialRampToValueAtTime(0.005, now + 2.5);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(sfxGain);
+
+      osc.start(now);
+      osc.stop(now + 2.5);
+
+      // 2. Cosmic LFO frequency modulation
+      const lfo = audioCtx.createOscillator();
+      const lfoGain = audioCtx.createGain();
+      lfo.frequency.setValueAtTime(7, now);
+      lfo.frequency.linearRampToValueAtTime(22, now + 1.8);
+      lfoGain.gain.setValueAtTime(35, now);
+      lfo.connect(osc.frequency);
+      lfo.start(now);
+      lfo.stop(now + 2.5);
+    } catch (e) {}
+  }
+
+  function playBlackHoleAbsorbSound(count = 0) {
+    if (isMuted || !audioCtx) return;
+    try {
+      const now = audioCtx.currentTime;
+      const baseFreq = 420 * Math.pow(1.06, Math.min(18, count));
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(baseFreq * 0.8, now);
+      osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.85, now + 0.12);
+
+      gain.gain.setValueAtTime(0.24, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+
+      osc.connect(gain);
+      gain.connect(sfxGain);
+
+      osc.start(now);
+      osc.stop(now + 0.13);
+    } catch (e) {}
+  }
+
+  function playBlackHoleCollapseSound() {
+    if (isMuted || !audioCtx) return;
+    try {
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const filter = audioCtx.createBiquadFilter();
+
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(260, now);
+      filter.frequency.exponentialRampToValueAtTime(1900, now + 1.2);
+      filter.Q.setValueAtTime(4.5, now);
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(55, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 1.2);
+
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.linearRampToValueAtTime(0.32, now + 0.8);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(sfxGain);
+
+      osc.start(now);
+      osc.stop(now + 1.25);
+    } catch (e) {}
+  }
+
+  function playSupernovaFanfareSound() {
+    if (isMuted || !audioCtx) return;
+    try {
+      const now = audioCtx.currentTime;
+      // Grand radiant chord: C4, G4, C5, E5, G5, B5, C6
+      const freqs = [261.63, 392.00, 523.25, 659.25, 783.99, 987.77, 1046.50];
+      freqs.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const startTime = now + idx * 0.05;
+
+        osc.type = idx % 2 === 0 ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(freq, startTime);
+        osc.frequency.linearRampToValueAtTime(freq * 1.01, startTime + 1.2);
+
+        gain.gain.setValueAtTime(0.35, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 1.5);
+
+        osc.connect(gain);
+        gain.connect(sfxGain);
+
+        osc.start(startTime);
+        osc.stop(startTime + 1.5);
+      });
+    } catch (e) {}
+  }
+
   function triggerScreenShake(level, combo = 0) {
     let base = 2 + level * 1.5;
     if (level >= 7) base += 4;
@@ -680,8 +812,82 @@
     // Setup evolution modal previews
     renderEvolutionCanvases();
 
+    // Check Test Mode (?test in URL)
+    checkTestMode();
+
     // Start Animation Render Loop
     requestAnimationFrame(gameLoop);
+  }
+
+  function checkTestMode() {
+    const isTestMode = window.location.search.includes('test');
+    if (!isTestMode) return;
+
+    // Pre-spawn a Sun and other planets at the bottom of the board for testing
+    const { Bodies, World } = Matter;
+
+    // 1. Sun (Level 9) resting on ground at bottom-left
+    const sunDef = PLANETS[9];
+    const sunBody = Bodies.circle(135, GROUND_Y - sunDef.radius, sunDef.radius, {
+      restitution: 0.15,
+      friction: 0.3,
+      density: 0.002 * sunDef.mass,
+      label: 'planet'
+    });
+    sunBody.planetLevel = 9;
+    sunBody.isPlanet = true;
+    sunBody.isDropped = true;
+
+    // 2. Jupiter (Level 8) resting on ground at bottom-right
+    const jupDef = PLANETS[8];
+    const jupBody = Bodies.circle(325, GROUND_Y - jupDef.radius, jupDef.radius, {
+      restitution: 0.15,
+      friction: 0.3,
+      density: 0.002 * jupDef.mass,
+      label: 'planet'
+    });
+    jupBody.planetLevel = 8;
+    jupBody.isPlanet = true;
+    jupBody.isDropped = true;
+
+    // 3. Earth (Level 4) on top of Jupiter
+    const earthDef = PLANETS[4];
+    const earthBody = Bodies.circle(300, GROUND_Y - jupDef.radius * 2 - earthDef.radius - 8, earthDef.radius, {
+      restitution: 0.15,
+      friction: 0.3,
+      density: 0.002 * earthDef.mass,
+      label: 'planet'
+    });
+    earthBody.planetLevel = 4;
+    earthBody.isPlanet = true;
+    earthBody.isDropped = true;
+
+    // 4. Mars (Level 2) above Sun
+    const marsDef = PLANETS[2];
+    const marsBody = Bodies.circle(115, GROUND_Y - sunDef.radius * 2 - marsDef.radius - 8, marsDef.radius, {
+      restitution: 0.15,
+      friction: 0.3,
+      density: 0.002 * marsDef.mass,
+      label: 'planet'
+    });
+    marsBody.planetLevel = 2;
+    marsBody.isPlanet = true;
+    marsBody.isDropped = true;
+
+    World.add(world, [sunBody, jupBody, earthBody, marsBody]);
+
+    // Set queue to drop Sun next
+    currentPlanetIndex = 9;
+    nextPlanetIndex = 9;
+    updateNextPlanetUI();
+
+    // Show Test Mode Notice in Controls Hint
+    const elHint = document.querySelector('.controls-hint span');
+    if (elHint) {
+      elHint.textContent = getI18N().testMode;
+      elHint.style.color = '#fbbf24';
+      elHint.style.fontWeight = 'bold';
+    }
   }
 
   function getRandomSpawnLevel() {
@@ -908,8 +1114,8 @@
               triggerSunCreationVictory(midX, midY);
             }
           } else if (currentLevel === 9) {
-            // Merging two Suns (Double Sun celebration & super bonus!)
-            triggerDoubleSunMerge(midX, midY);
+            // Merging two Suns -> Spawn Black Hole Sequence!
+            triggerBlackHoleSequence(midX, midY);
           }
         }, 0);
       } else {
@@ -955,31 +1161,342 @@
     });
   }
 
-  function triggerDoubleSunMerge(x, y) {
-    playSunCreationSound();
-    triggerScreenShake(12, comboCount);
-    addScore(10000); // 10,000 bonus points!
+  function triggerBlackHoleSequence(x, y) {
+    isBlackHoleActive = true;
+    isDropCoolingDown = true;
+    dangerTimer = 0;
+    elDangerLine.classList.remove('warning');
 
-    // Massive fireworks explosion
-    spawnMergeParticles(x, y, '#fef08a', 130);
-    spawnMergeParticles(x, y, '#f97316', 110);
-    spawnMergeParticles(x, y, '#ffffff', 90);
-    spawnMergeParticles(x, y, '#ec4899', 70);
+    blackHole = {
+      x: x,
+      y: y,
+      radius: 0,
+      targetRadius: 65,
+      accretionAngle: 0,
+      state: 'GROWING', // 'GROWING' | 'SUCKING' | 'COLLAPSING' | 'SUPERNOVA'
+      timer: 0,
+      absorbedCount: 0,
+      initialPlanetsCount: 0
+    };
 
-    // Mega expanding shockwaves
-    shockwaves.push({ x: x, y: y, radius: 10, maxRadius: 360, color: 'rgba(254, 240, 138, 1.0)', alpha: 1.0 });
-    shockwaves.push({ x: x, y: y, radius: 5, maxRadius: 260, color: 'rgba(249, 115, 22, 0.9)', alpha: 1.0 });
+    playBlackHoleStartSound();
+    triggerScreenShake(16, 0);
+
+    // Initial expansive cosmic burst
+    shockwaves.push({ x: x, y: y, radius: 10, maxRadius: 320, color: 'rgba(168, 85, 247, 0.95)', alpha: 1.0 });
+    spawnMergeParticles(x, y, '#c084fc', 60);
+    spawnMergeParticles(x, y, '#38bdf8', 50);
+    spawnMergeParticles(x, y, '#ffffff', 40);
 
     floatingTexts.push({
-      text: I18N.doubleSunMerge,
+      text: getI18N().doubleSunMerge,
       x: x,
-      y: y - 20,
-      vy: -1.6,
+      y: Math.max(60, y - 45),
+      vy: -1.2,
       alpha: 1.0,
-      color: '#fef08a',
-      shadowColor: '#ec4899',
+      color: '#f0abfc',
+      shadowColor: '#6366f1',
       fontSize: 22
     });
+  }
+
+  function updateBlackHole() {
+    if (!blackHole) return;
+
+    blackHole.accretionAngle += 0.08;
+
+    // --- STAGE 1: MAJESTIC BIRTH / EXPANSION (~1.6s, 95 frames) ---
+    if (blackHole.state === 'GROWING') {
+      blackHole.timer++;
+      // Smooth asymptotic growth
+      blackHole.radius += (blackHole.targetRadius - blackHole.radius) * 0.045;
+
+      // Periodic gravitational wave pulses
+      if (blackHole.timer % 30 === 0) {
+        shockwaves.push({
+          x: blackHole.x,
+          y: blackHole.y,
+          radius: blackHole.radius * 0.8,
+          maxRadius: 260,
+          color: 'rgba(56, 189, 248, 0.75)',
+          alpha: 0.85
+        });
+        triggerScreenShake(4, 0);
+      }
+
+      if (blackHole.timer > 95 || blackHole.radius >= blackHole.targetRadius - 1.0) {
+        blackHole.radius = blackHole.targetRadius;
+        blackHole.state = 'SUCKING';
+        blackHole.timer = 0;
+        const allPlanets = Matter.Composite.allBodies(world).filter(b => b.isPlanet);
+        blackHole.initialPlanetsCount = allPlanets.length;
+      }
+    }
+    // --- STAGE 2: ORBITAL INFLOW & SPAGHETTIFICATION (~3.5s - 4.5s) ---
+    else if (blackHole.state === 'SUCKING') {
+      blackHole.timer++;
+
+      // Swirl inward suction particles continuously
+      if (Math.random() < 0.9) {
+        const pAngle = Math.random() * Math.PI * 2;
+        const pDist = blackHole.radius * 1.8 + Math.random() * 120;
+        const swirlTangential = 3.2;
+        const swirlInward = 2.4;
+        particles.push({
+          x: blackHole.x + Math.cos(pAngle) * pDist,
+          y: blackHole.y + Math.sin(pAngle) * pDist,
+          vx: -Math.cos(pAngle) * swirlInward - Math.sin(pAngle) * swirlTangential,
+          vy: -Math.sin(pAngle) * swirlInward + Math.cos(pAngle) * swirlTangential,
+          radius: Math.random() * 2.8 + 1.2,
+          color: Math.random() > 0.6 ? '#38bdf8' : Math.random() > 0.3 ? '#c084fc' : '#fef08a',
+          alpha: 0.95,
+          decay: 0.018
+        });
+      }
+
+      const planets = Matter.Composite.allBodies(world).filter(b => b.isPlanet);
+
+      planets.forEach(body => {
+        const dx = blackHole.x - body.position.x;
+        const dy = blackHole.y - body.position.y;
+        const dist = Math.hypot(dx, dy);
+
+        // Smooth orbital inward spiral velocity (graceful arcs instead of sudden rush)
+        const pullSpeed = Math.min(8.5, Math.max(2.2, 220 / (dist + 30)));
+        const tangentialSpeed = Math.min(10.0, Math.max(3.0, 260 / (dist + 20)));
+
+        const directAngle = Math.atan2(dy, dx);
+        const spiralAngle = directAngle + Math.PI / 2.0;
+
+        const vx = Math.cos(directAngle) * pullSpeed + Math.cos(spiralAngle) * tangentialSpeed;
+        const vy = Math.sin(directAngle) * pullSpeed + Math.sin(spiralAngle) * tangentialSpeed;
+
+        Matter.Body.setVelocity(body, { x: vx, y: vy });
+        Matter.Body.setAngularVelocity(body, 0.18);
+
+        // Stream color trails from each planet
+        const planetDef = PLANETS[body.planetLevel];
+        if (planetDef && Math.random() < 0.5) {
+          particles.push({
+            x: body.position.x + (Math.random() - 0.5) * 10,
+            y: body.position.y + (Math.random() - 0.5) * 10,
+            vx: Math.cos(directAngle) * 2.5,
+            vy: Math.sin(directAngle) * 2.5,
+            radius: Math.random() * 2.5 + 1.0,
+            color: planetDef.color,
+            alpha: 0.85,
+            decay: 0.03
+          });
+        }
+
+        // Absorption trigger when reached event horizon
+        if (dist < 26 || (blackHole.timer > 320 && dist < 70)) {
+          Matter.Composite.remove(world, body);
+          const pts = (planetDef ? planetDef.score * 3 : 150) + 300;
+          addScore(pts);
+          blackHole.absorbedCount++;
+
+          playBlackHoleAbsorbSound(blackHole.absorbedCount);
+          spawnMergeParticles(blackHole.x, blackHole.y, planetDef ? planetDef.color : '#ffffff', 22);
+
+          // Small absorption pulse
+          shockwaves.push({
+            x: blackHole.x,
+            y: blackHole.y,
+            radius: 8,
+            maxRadius: 85,
+            color: planetDef ? planetDef.glow : 'rgba(56, 189, 248, 0.8)',
+            alpha: 0.9
+          });
+
+          // Floating score popup for absorbed planet
+          floatingTexts.push({
+            text: `+${pts} ${getPlanetDisplayName(planetDef)}`,
+            x: blackHole.x + (Math.random() - 0.5) * 60,
+            y: blackHole.y - 20 - (Math.random() * 30),
+            vy: -1.2,
+            alpha: 1.0,
+            color: planetDef ? planetDef.color : '#fef08a',
+            shadowColor: planetDef ? planetDef.glow : '#38bdf8',
+            fontSize: 16
+          });
+
+          triggerScreenShake(4, 0);
+        }
+      });
+
+      // Check if all planets are sucked in and minimum suction duration met (~2.5s)
+      const remainingPlanets = Matter.Composite.allBodies(world).filter(b => b.isPlanet);
+      if (remainingPlanets.length === 0 && (blackHole.timer >= 150 || blackHole.initialPlanetsCount === 0)) {
+        blackHole.state = 'COLLAPSING';
+        blackHole.timer = 0;
+        playBlackHoleCollapseSound();
+      }
+    }
+    // --- STAGE 3: SUSPENSEFUL SINGULARITY CONTRACTION (~1.3s, 80 frames) ---
+    else if (blackHole.state === 'COLLAPSING') {
+      blackHole.timer++;
+      // Gradual contraction from 65px down to 1.5px
+      blackHole.radius = Math.max(1.2, blackHole.radius * 0.94);
+
+      // Increasing vibration and tension shake
+      const tensionShake = 3 + (blackHole.timer / 80) * 12;
+      triggerScreenShake(tensionShake, 0);
+
+      // Inward collapse spark rays
+      if (Math.random() < 0.9) {
+        const cAngle = Math.random() * Math.PI * 2;
+        const cDist = 40 + Math.random() * 60;
+        particles.push({
+          x: blackHole.x + Math.cos(cAngle) * cDist,
+          y: blackHole.y + Math.sin(cAngle) * cDist,
+          vx: -Math.cos(cAngle) * 6.0,
+          vy: -Math.sin(cAngle) * 6.0,
+          radius: Math.random() * 2.2 + 1.0,
+          color: '#ffffff',
+          alpha: 1.0,
+          decay: 0.04
+        });
+      }
+
+      if (blackHole.radius <= 2.2 || blackHole.timer > 80) {
+        blackHole.state = 'SUPERNOVA';
+        blackHole.timer = 0;
+
+        // FLASH & DETONATION!
+        screenFlashAlpha = 0.95;
+        playSupernovaFanfareSound();
+        triggerScreenShake(28, 0);
+
+        const totalBonus = 15000 + blackHole.absorbedCount * 250;
+        addScore(totalBonus);
+
+        floatingTexts.push({
+          text: getI18N().blackHoleClear,
+          x: blackHole.x,
+          y: Math.max(80, blackHole.y - 35),
+          vy: -1.3,
+          alpha: 1.0,
+          color: '#fef08a',
+          shadowColor: '#ec4899',
+          fontSize: 24
+        });
+
+        // 6 Multi-Color Concentric Shockwaves
+        shockwaves.push({ x: blackHole.x, y: blackHole.y, radius: 10, maxRadius: 480, color: 'rgba(255, 255, 255, 1.0)', alpha: 1.0 });
+        shockwaves.push({ x: blackHole.x, y: blackHole.y, radius: 8, maxRadius: 390, color: 'rgba(56, 189, 248, 0.95)', alpha: 1.0 });
+        shockwaves.push({ x: blackHole.x, y: blackHole.y, radius: 6, maxRadius: 320, color: 'rgba(236, 72, 153, 0.95)', alpha: 1.0 });
+        shockwaves.push({ x: blackHole.x, y: blackHole.y, radius: 4, maxRadius: 260, color: 'rgba(251, 191, 36, 0.9)', alpha: 1.0 });
+        shockwaves.push({ x: blackHole.x, y: blackHole.y, radius: 4, maxRadius: 200, color: 'rgba(168, 85, 247, 0.9)', alpha: 1.0 });
+
+        // Over 300 Sparkling Fireworks Particles
+        spawnMergeParticles(blackHole.x, blackHole.y, '#ffffff', 90);
+        spawnMergeParticles(blackHole.x, blackHole.y, '#38bdf8', 75);
+        spawnMergeParticles(blackHole.x, blackHole.y, '#ec4899', 75);
+        spawnMergeParticles(blackHole.x, blackHole.y, '#fbbf24', 70);
+        spawnMergeParticles(blackHole.x, blackHole.y, '#a855f7', 60);
+      }
+    }
+    // --- STAGE 4: CLIMAX & RETURN TO GAMEPLAY (~2.2s, 130 frames) ---
+    else if (blackHole.state === 'SUPERNOVA') {
+      blackHole.timer++;
+      if (blackHole.timer > 120) {
+        blackHole = null;
+        isBlackHoleActive = false;
+        isDropCoolingDown = false;
+        dangerTimer = 0;
+        elDangerLine.classList.remove('warning');
+      }
+    }
+  }
+
+  function drawBlackHoleVisual() {
+    if (!blackHole || blackHole.state === 'SUPERNOVA') return;
+
+    const { x, y, radius, accretionAngle } = blackHole;
+    const r = radius;
+
+    ctx.save();
+    ctx.translate(x, y);
+
+    // 1. Gravitational Lensing & Space Distortion Glow
+    const glowGrad = ctx.createRadialGradient(0, 0, r * 0.8, 0, 0, r * 3.0);
+    glowGrad.addColorStop(0, 'rgba(139, 92, 246, 0.85)');
+    glowGrad.addColorStop(0.35, 'rgba(56, 189, 248, 0.5)');
+    glowGrad.addColorStop(0.7, 'rgba(236, 72, 153, 0.18)');
+    glowGrad.addColorStop(1, 'transparent');
+
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 3.0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Rotating Luminous Accretion Disk (Interstellar-style Relativistic Beaming)
+    ctx.save();
+    ctx.rotate(accretionAngle);
+
+    // Outer Swirling Accretion Disk Rays (16 stream rays)
+    for (let i = 0; i < 16; i++) {
+      const angle = (Math.PI * 2 / 16) * i;
+      const rayLen = r * 2.5;
+      ctx.save();
+      ctx.rotate(angle);
+
+      const rayGrad = ctx.createLinearGradient(r * 0.9, 0, rayLen, 0);
+      rayGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+      rayGrad.addColorStop(0.3, 'rgba(56, 189, 248, 0.75)');
+      rayGrad.addColorStop(0.6, 'rgba(168, 85, 247, 0.55)');
+      rayGrad.addColorStop(1, 'transparent');
+
+      ctx.fillStyle = rayGrad;
+      ctx.beginPath();
+      ctx.moveTo(r * 0.9, -r * 0.16);
+      ctx.lineTo(rayLen, 0);
+      ctx.lineTo(r * 0.9, r * 0.16);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Accretion Ring Ellipse (Tilted 3D disk with Doppler asymmetric brightness)
+    ctx.save();
+    ctx.scale(1, 0.42);
+    ctx.strokeStyle = 'rgba(254, 240, 138, 0.88)';
+    ctx.lineWidth = r * 0.38;
+    ctx.shadowColor = '#38bdf8';
+    ctx.shadowBlur = 22;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.75, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.restore(); // Restore Accretion Disk Rotation
+
+    // 3. Thin Intense Photon Sphere (Luminous boundary ring)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.lineWidth = 3.5;
+    ctx.shadowColor = '#38bdf8';
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.08, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 4. Pure Jet Black Event Horizon (The Black Hole Void)
+    ctx.fillStyle = '#000000';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+    ctx.shadowBlur = 28;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Inner deep shadow
+    ctx.strokeStyle = 'rgba(10, 10, 15, 0.95)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.restore();
   }
 
   function addScore(points) {
@@ -1019,6 +1536,8 @@
     dangerTimer = 0;
     isGameOver = false;
     isDropCoolingDown = false;
+    blackHole = null;
+    isBlackHoleActive = false;
     comboCount = 0;
     lastMergeTime = 0;
     if (comboResetTimeout) {
@@ -1164,6 +1683,10 @@
     // Render Physics Bodies (Planets)
     renderPlanets();
 
+    // Update & Render Black Hole
+    updateBlackHole();
+    drawBlackHoleVisual();
+
     // Render Drop Preview & Aim Line
     if (!isGameOver && !isDropCoolingDown) {
       renderAimGuide();
@@ -1176,6 +1699,17 @@
     // Render Particles
     updateParticles();
     renderParticles();
+
+    // Render Flash Overlay if active
+    if (screenFlashAlpha > 0.01) {
+      ctx.save();
+      ctx.fillStyle = `rgba(255, 255, 255, ${screenFlashAlpha})`;
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      screenFlashAlpha *= 0.92;
+      ctx.restore();
+    } else {
+      screenFlashAlpha = 0;
+    }
 
     updateFloatingTexts();
     renderFloatingTexts();
@@ -1305,7 +1839,7 @@
   }
 
   function checkDangerLine() {
-    if (isGameOver) return;
+    if (isGameOver || isBlackHoleActive) return;
 
     const bodies = Matter.Composite.allBodies(world);
     let isAboveDanger = false;
@@ -1364,7 +1898,21 @@
     for (let body of bodies) {
       if (body.isPlanet) {
         const planetDef = PLANETS[body.planetLevel];
-        drawPlanetVisual(body.position.x, body.position.y, planetDef, body.angle);
+        if (!planetDef) continue;
+
+        // Visual spaghettification & shrinking when sucked into Black Hole
+        let drawDef = planetDef;
+        if (isBlackHoleActive && blackHole) {
+          const dx = blackHole.x - body.position.x;
+          const dy = blackHole.y - body.position.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 220) {
+            const scale = Math.max(0.18, Math.min(1.0, dist / 180));
+            drawDef = { ...planetDef, radius: planetDef.radius * scale };
+          }
+        }
+
+        drawPlanetVisual(body.position.x, body.position.y, drawDef, body.angle);
 
         // Emit glowing solar embers around active Sun
         if (planetDef.details === 'sun' && Math.random() < 0.45) {
