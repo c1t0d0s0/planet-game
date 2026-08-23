@@ -32,7 +32,6 @@ HTML5 Canvas、Vanilla CSS、JavaScript、および **Matter.js** 2D物理エン
 - **レスポンシブ ＆ タッチ対応**: PCでのマウスドラッグ/クリック、スマートフォンでのタッチ操作（`touch-action: none`）に完全対応。
 - **インタラクティブ惑星進化表**: モーダル内で全10種類の天体の実際のゲーム内グラフィックがリアルタイムアニメーションで確認可能。
 - **ハイスコア保存**: ブラウザの `localStorage` にベストスコアを自動記録。
-- **Google Analytics / タグマネージャー連携**: `config.js` の `GTM_ID` から `gtag.js` を動的に読み込み。
 
 ---
 
@@ -46,18 +45,6 @@ planet-game/
 ├── config.js        # アナリティクス用設定（GTM_ID）
 ├── README.md        # 英語版 README
 ├── README.ja.md     # 日本語版 README
-└── .gitignore       # config.js と PROMPT.txt をGit管理外に設定
+└── .gitignore
 ```
 
----
-
-## 🚀 実行方法
-
-`index.html` を任意のWebブラウザで開くか、ローカルHTTPサーバーを起動してアクセスします：
-
-```bash
-# Python 3 を使用する場合
-python3 -m http.server 8000
-```
-
-ブラウザで `http://localhost:8000` にアクセスしてください。
