@@ -12,7 +12,7 @@
       level: 0,
       name: '月',
       enName: 'Moon',
-      radius: 17,
+      radius: 15,
       mass: 1.0,
       color: '#cbd5e1',
       glow: '#f1f5f9',
@@ -23,7 +23,7 @@
       level: 1,
       name: '水星',
       enName: 'Mercury',
-      radius: 24,
+      radius: 21,
       mass: 1.4,
       color: '#94a3b8',
       glow: '#cbd5e1',
@@ -34,7 +34,7 @@
       level: 2,
       name: '火星',
       enName: 'Mars',
-      radius: 33,
+      radius: 28,
       mass: 2.0,
       color: '#ef4444',
       glow: '#fca5a5',
@@ -45,7 +45,7 @@
       level: 3,
       name: '金星',
       enName: 'Venus',
-      radius: 43,
+      radius: 36,
       mass: 2.8,
       color: '#f59e0b',
       glow: '#fde047',
@@ -56,7 +56,7 @@
       level: 4,
       name: '地球',
       enName: 'Earth',
-      radius: 54,
+      radius: 45,
       mass: 3.8,
       color: '#0284c7',
       glow: '#38bdf8',
@@ -67,7 +67,7 @@
       level: 5,
       name: '海王星',
       enName: 'Neptune',
-      radius: 66,
+      radius: 55,
       mass: 5.0,
       color: '#4338ca',
       glow: '#818cf8',
@@ -78,7 +78,7 @@
       level: 6,
       name: '天王星',
       enName: 'Uranus',
-      radius: 79,
+      radius: 66,
       mass: 6.5,
       color: '#0d9488',
       glow: '#2dd4bf',
@@ -89,7 +89,7 @@
       level: 7,
       name: '土星',
       enName: 'Saturn',
-      radius: 93,
+      radius: 78,
       mass: 8.5,
       color: '#eab308',
       glow: '#fef08a',
@@ -100,7 +100,7 @@
       level: 8,
       name: '木星',
       enName: 'Jupiter',
-      radius: 110,
+      radius: 90,
       mass: 11.0,
       color: '#c07d32',
       glow: '#fef3c7',
@@ -111,7 +111,7 @@
       level: 9,
       name: '太陽',
       enName: 'Sun',
-      radius: 130,
+      radius: 102,
       mass: 15.0,
       color: '#fbbf24',
       glow: '#fef08a',
@@ -123,6 +123,7 @@
   // --- 2. GAME STATE & CONSTANTS ---
   const CANVAS_WIDTH = 440;
   const CANVAS_HEIGHT = 660;
+  const GROUND_Y = CANVAS_HEIGHT - 14;
   const WALL_THICKNESS = 40;
   const DANGER_LINE_Y = 105;
   const DROP_SPAWN_Y = 50;
@@ -141,6 +142,15 @@
   let isDropCoolingDown = false;
   let dangerTimer = 0;
   const DANGER_TIME_LIMIT = 110; // ~1.8s at 60fps
+
+  // Combo & Screen Shake State
+  let comboCount = 0;
+  let lastMergeTime = 0;
+  let comboResetTimeout = null;
+  const COMBO_WINDOW_MS = 1600; // 1.6s
+
+  let shakeIntensity = 0;
+  const SHAKE_DECAY = 0.88;
 
   let particles = [];
   let stars = [];
@@ -170,12 +180,31 @@
 
   // --- 3. WEB AUDIO API SYNTHESIZER ---
   let audioCtx = null;
+  let masterGain = null;
+  let bgmGain = null;
+  let sfxGain = null;
+  let bgmInterval = null;
+  let bgmChordIndex = 0;
+  let lastBounceSoundTime = 0;
 
   function initAudio() {
     if (!audioCtx) {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       if (AudioContext) {
         audioCtx = new AudioContext();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(isMuted ? 0 : 1, audioCtx.currentTime);
+        masterGain.connect(audioCtx.destination);
+
+        bgmGain = audioCtx.createGain();
+        bgmGain.gain.setValueAtTime(0.075, audioCtx.currentTime);
+        bgmGain.connect(masterGain);
+
+        sfxGain = audioCtx.createGain();
+        sfxGain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+        sfxGain.connect(masterGain);
+
+        startAmbientBGM();
       }
     }
     if (audioCtx && audioCtx.state === 'suspended') {
@@ -183,76 +212,249 @@
     }
   }
 
-  function playDropSound() {
-    if (isMuted || !audioCtx) return;
+  // Cosmic ambient chord progression: Fm9 -> Dbmaj7 -> Bbm9 -> Eb7sus4
+  const BGM_CHORDS = [
+    [174.61, 261.63, 311.13, 392.00], // F3, C4, Eb4, G4 (Fm9)
+    [138.59, 207.65, 261.63, 349.23], // Db3, Ab3, C4, F4 (Dbmaj7)
+    [116.54, 174.61, 277.18, 349.23], // Bb2, F3, Db4, F4 (Bbm9)
+    [155.56, 233.08, 277.18, 392.00]  // Eb3, Bb3, Db4, G4 (Eb7)
+  ];
+
+  function startAmbientBGM() {
+    if (bgmInterval || !audioCtx) return;
+    playBGMChord();
+    bgmInterval = setInterval(() => {
+      playBGMChord();
+    }, 3800);
+  }
+
+  function playBGMChord() {
+    if (!audioCtx || isMuted) return;
     try {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(180, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.12);
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.12);
+      const chord = BGM_CHORDS[bgmChordIndex % BGM_CHORDS.length];
+      bgmChordIndex++;
+
+      const chordDuration = 3.6;
+      const now = audioCtx.currentTime;
+
+      // Low-pass filter for warm space pad texture
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(450, now);
+      filter.frequency.exponentialRampToValueAtTime(750, now + 1.8);
+      filter.frequency.exponentialRampToValueAtTime(450, now + chordDuration);
+      filter.connect(bgmGain);
+
+      chord.forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const noteGain = audioCtx.createGain();
+
+        osc.type = i === 0 ? 'sine' : 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.detune.setValueAtTime((i % 2 === 0 ? 3 : -3), now);
+
+        noteGain.gain.setValueAtTime(0.001, now);
+        noteGain.gain.linearRampToValueAtTime(0.05, now + 1.2);
+        noteGain.gain.exponentialRampToValueAtTime(0.0005, now + chordDuration);
+
+        osc.connect(noteGain);
+        noteGain.connect(filter);
+
+        osc.start(now);
+        osc.stop(now + chordDuration);
+      });
+
+      // Occasional gentle sparkle overtone
+      if (Math.random() < 0.6) {
+        const sparkleFreq = chord[Math.floor(Math.random() * chord.length)] * 2;
+        const sparkleOsc = audioCtx.createOscillator();
+        const sparkleGain = audioCtx.createGain();
+        const sparkleTime = now + 0.8 + Math.random() * 1.5;
+
+        sparkleOsc.type = 'sine';
+        sparkleOsc.frequency.setValueAtTime(sparkleFreq, sparkleTime);
+
+        sparkleGain.gain.setValueAtTime(0.001, sparkleTime);
+        sparkleGain.gain.linearRampToValueAtTime(0.02, sparkleTime + 0.2);
+        sparkleGain.gain.exponentialRampToValueAtTime(0.0001, sparkleTime + 1.2);
+
+        sparkleOsc.connect(sparkleGain);
+        sparkleGain.connect(bgmGain);
+
+        sparkleOsc.start(sparkleTime);
+        sparkleOsc.stop(sparkleTime + 1.2);
+      }
     } catch (e) {}
   }
 
-  function playMergeSound(level) {
+  function playDropSound() {
     if (isMuted || !audioCtx) return;
     try {
+      const now = audioCtx.currentTime;
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-      const baseFreq = 240 + level * 55;
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, audioCtx.currentTime + 0.18);
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(70, now + 0.14);
+
+      gain.gain.setValueAtTime(0.22, now);
+      gain.gain.exponentialRampToValueAtTime(0.005, now + 0.14);
+
       osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.2);
+      gain.connect(sfxGain);
+
+      osc.start(now);
+      osc.stop(now + 0.14);
+    } catch (e) {}
+  }
+
+  function playBounceSound(speed, mass) {
+    if (isMuted || !audioCtx) return;
+    const now = Date.now();
+    if (now - lastBounceSoundTime < 60) return;
+    lastBounceSoundTime = now;
+
+    try {
+      const actNow = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      const basePitch = Math.max(90, 210 - mass * 6);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(basePitch, actNow);
+      osc.frequency.exponentialRampToValueAtTime(basePitch * 0.7, actNow + 0.08);
+
+      const vol = Math.min(0.18, Math.max(0.03, (speed - 1.5) * 0.03));
+      gain.gain.setValueAtTime(vol, actNow);
+      gain.gain.exponentialRampToValueAtTime(0.001, actNow + 0.08);
+
+      osc.connect(gain);
+      gain.connect(sfxGain);
+
+      osc.start(actNow);
+      osc.stop(actNow + 0.08);
+    } catch (e) {}
+  }
+
+  function playMergeSound(level, combo = 1) {
+    if (isMuted || !audioCtx) return;
+    try {
+      const now = audioCtx.currentTime;
+      const baseFreq = 220 + level * 42;
+      const pitchMult = Math.pow(1.09, Math.min(10, combo - 1));
+      const rootFreq = baseFreq * pitchMult;
+
+      // Primary tone
+      const osc1 = audioCtx.createOscillator();
+      const gain1 = audioCtx.createGain();
+      osc1.type = 'triangle';
+      osc1.frequency.setValueAtTime(rootFreq, now);
+      osc1.frequency.exponentialRampToValueAtTime(rootFreq * 1.45, now + 0.2);
+
+      gain1.gain.setValueAtTime(0.28, now);
+      gain1.gain.exponentialRampToValueAtTime(0.005, now + 0.22);
+      osc1.connect(gain1);
+      gain1.connect(sfxGain);
+      osc1.start(now);
+      osc1.stop(now + 0.22);
+
+      // Harmonious overtone (Fifth to Octave)
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(rootFreq * 1.5, now);
+      osc2.frequency.exponentialRampToValueAtTime(rootFreq * 2.0, now + 0.22);
+
+      gain2.gain.setValueAtTime(0.16, now);
+      gain2.gain.exponentialRampToValueAtTime(0.002, now + 0.22);
+      osc2.connect(gain2);
+      gain2.connect(sfxGain);
+      osc2.start(now);
+      osc2.stop(now + 0.22);
+
+      // High combo additional sparkle
+      if (combo >= 3) {
+        const osc3 = audioCtx.createOscillator();
+        const gain3 = audioCtx.createGain();
+        osc3.type = 'sine';
+        osc3.frequency.setValueAtTime(rootFreq * 2.5, now + 0.04);
+        gain3.gain.setValueAtTime(0.14, now + 0.04);
+        gain3.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+        osc3.connect(gain3);
+        gain3.connect(sfxGain);
+        osc3.start(now + 0.04);
+        osc3.stop(now + 0.26);
+      }
+    } catch (e) {}
+  }
+
+  function playClickSound() {
+    if (isMuted || !audioCtx) return;
+    try {
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(400, now + 0.04);
+
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+      osc.connect(gain);
+      gain.connect(sfxGain);
+
+      osc.start(now);
+      osc.stop(now + 0.04);
     } catch (e) {}
   }
 
   function playGameOverSound() {
     if (isMuted || !audioCtx) return;
     try {
+      const now = audioCtx.currentTime;
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(220, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.6);
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(70, now + 0.7);
+      gain.gain.setValueAtTime(0.32, now);
+      gain.gain.exponentialRampToValueAtTime(0.005, now + 0.7);
       osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.6);
+      gain.connect(sfxGain);
+      osc.start(now);
+      osc.stop(now + 0.7);
     } catch (e) {}
   }
 
   function playSunCreationSound() {
     if (isMuted || !audioCtx) return;
     try {
-      const freqs = [523.25, 659.25, 783.99, 1046.50]; // Fanfare C5, E5, G5, C6
+      const freqs = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // Fanfare C5, E5, G5, C6, E6
       freqs.forEach((freq, idx) => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        const startTime = audioCtx.currentTime + idx * 0.09;
+        const startTime = audioCtx.currentTime + idx * 0.08;
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(freq, startTime);
-        gain.gain.setValueAtTime(0.35, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.6);
+        gain.gain.setValueAtTime(0.32, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.7);
         osc.connect(gain);
-        gain.connect(audioCtx.destination);
+        gain.connect(sfxGain);
         osc.start(startTime);
-        osc.stop(startTime + 0.6);
+        osc.stop(startTime + 0.7);
       });
     } catch (e) {}
+  }
+
+  function triggerScreenShake(level, combo = 0) {
+    let base = 2 + level * 1.5;
+    if (level >= 7) base += 4;
+    if (level >= 9) base += 10;
+    if (combo >= 2) base += Math.min(10, combo * 2.5);
+    shakeIntensity = Math.min(28, Math.max(shakeIntensity, base));
   }
 
   let shockwaves = [];
@@ -278,7 +480,7 @@
     world = engine.world;
 
     // Add static boundary walls
-    const ground = Bodies.rectangle(CANVAS_WIDTH / 2, CANVAS_HEIGHT + 15, CANVAS_WIDTH + 100, 30, {
+    const ground = Bodies.rectangle(CANVAS_WIDTH / 2, GROUND_Y + 15, CANVAS_WIDTH + 100, 30, {
       isStatic: true,
       friction: 0.5
     });
@@ -363,26 +565,40 @@
 
     // Header buttons
     btnSound.addEventListener('click', () => {
+      playClickSound();
       isMuted = !isMuted;
+      if (masterGain && audioCtx) {
+        masterGain.gain.setValueAtTime(isMuted ? 0 : 1, audioCtx.currentTime);
+      }
       iconSoundOn.classList.toggle('hidden', isMuted);
       iconSoundOff.classList.toggle('hidden', !isMuted);
     });
 
     btnInfo.addEventListener('click', () => {
+      playClickSound();
       elInfoModal.classList.remove('hidden');
       renderEvolutionCanvases();
     });
 
     btnCloseInfo.addEventListener('click', () => {
+      playClickSound();
       elInfoModal.classList.add('hidden');
     });
 
     btnStartGame.addEventListener('click', () => {
+      playClickSound();
+      initAudio();
       elInfoModal.classList.add('hidden');
     });
 
-    btnRestart.addEventListener('click', resetGame);
-    btnPlayAgain.addEventListener('click', resetGame);
+    btnRestart.addEventListener('click', () => {
+      playClickSound();
+      resetGame();
+    });
+    btnPlayAgain.addEventListener('click', () => {
+      playClickSound();
+      resetGame();
+    });
   }
 
   // --- 6. GAME MECHANICS & PHYSICS ---
@@ -441,14 +657,56 @@
         const midX = (bodyA.position.x + bodyB.position.x) / 2;
         const midY = (bodyA.position.y + bodyB.position.y) / 2;
 
+        // Combo Tracking
+        const now = Date.now();
+        if (now - lastMergeTime < COMBO_WINDOW_MS) {
+          comboCount++;
+        } else {
+          comboCount = 1;
+        }
+        lastMergeTime = now;
+        if (comboResetTimeout) clearTimeout(comboResetTimeout);
+        comboResetTimeout = setTimeout(() => {
+          comboCount = 0;
+        }, COMBO_WINDOW_MS);
+
+        const currentCombo = comboCount;
+
+        // Trigger Screen Shake on Merge
+        triggerScreenShake(currentLevel, currentCombo);
+
         // Schedule removal and spawn of next planet body
         setTimeout(() => {
           Matter.Composite.remove(world, bodyA);
           Matter.Composite.remove(world, bodyB);
 
-          addScore(PLANETS[currentLevel].score * 2);
-          playMergeSound(nextLevel);
+          let baseScore = PLANETS[currentLevel].score * 2;
+          let comboBonus = 0;
+          if (currentCombo >= 2) {
+            comboBonus = currentCombo * 12 * (nextLevel + 1);
+          }
+          addScore(baseScore + comboBonus);
+          playMergeSound(nextLevel, currentCombo);
           spawnMergeParticles(midX, midY, PLANETS[Math.min(nextLevel, PLANETS.length - 1)].color);
+
+          // Display combo floating text
+          if (currentCombo >= 2) {
+            const comboText = currentCombo >= 4 ? `⚡ ${currentCombo} MEGA COMBO! +${comboBonus}` : `🔥 ${currentCombo} COMBO! +${comboBonus}`;
+            const comboColor = currentCombo >= 4 ? '#ec4899' : currentCombo >= 3 ? '#fbbf24' : '#38bdf8';
+            const shadowColor = currentCombo >= 4 ? '#f43f5e' : currentCombo >= 3 ? '#d97706' : '#0284c7';
+            const fontSize = Math.min(26, 18 + currentCombo * 2);
+
+            floatingTexts.push({
+              text: comboText,
+              x: midX,
+              y: midY - 25,
+              vy: -1.3,
+              alpha: 1.0,
+              color: comboColor,
+              shadowColor: shadowColor,
+              fontSize: fontSize
+            });
+          }
 
           if (nextLevel < PLANETS.length) {
             const nextDef = PLANETS[nextLevel];
@@ -474,14 +732,29 @@
             if (nextLevel === 9) {
               triggerSunCreationVictory(midX, midY);
             }
+          } else if (currentLevel === 9) {
+            // Merging two Suns (Double Sun celebration & super bonus!)
+            triggerDoubleSunMerge(midX, midY);
           }
         }, 0);
+      } else {
+        // Non-merging planet collision bounce sound
+        if (bodyA.isPlanet || bodyB.isPlanet) {
+          const relVx = bodyA.velocity.x - bodyB.velocity.x;
+          const relVy = bodyA.velocity.y - bodyB.velocity.y;
+          const relSpeed = Math.sqrt(relVx * relVx + relVy * relVy);
+          if (relSpeed > 1.6) {
+            const mass = (bodyA.isPlanet ? bodyA.density * 500 : 1) + (bodyB.isPlanet ? bodyB.density * 500 : 1);
+            playBounceSound(relSpeed, mass);
+          }
+        }
       }
     }
   }
 
   function triggerSunCreationVictory(x, y) {
     playSunCreationSound();
+    triggerScreenShake(9, comboCount);
     addScore(5000); // Massive bonus points!
 
     // Multi-color explosion of particles
@@ -500,13 +773,48 @@
       x: x,
       y: y - 20,
       vy: -1.4,
-      alpha: 1.0
+      alpha: 1.0,
+      color: '#fef08a',
+      shadowColor: '#f59e0b',
+      fontSize: 22
+    });
+  }
+
+  function triggerDoubleSunMerge(x, y) {
+    playSunCreationSound();
+    triggerScreenShake(12, comboCount);
+    addScore(10000); // 10,000 bonus points!
+
+    // Massive fireworks explosion
+    spawnMergeParticles(x, y, '#fef08a', 130);
+    spawnMergeParticles(x, y, '#f97316', 110);
+    spawnMergeParticles(x, y, '#ffffff', 90);
+    spawnMergeParticles(x, y, '#ec4899', 70);
+
+    // Mega expanding shockwaves
+    shockwaves.push({ x: x, y: y, radius: 10, maxRadius: 360, color: 'rgba(254, 240, 138, 1.0)', alpha: 1.0 });
+    shockwaves.push({ x: x, y: y, radius: 5, maxRadius: 260, color: 'rgba(249, 115, 22, 0.9)', alpha: 1.0 });
+
+    floatingTexts.push({
+      text: '☀️☀️ 太陽消滅合体！ SUPER BONUS +10000',
+      x: x,
+      y: y - 20,
+      vy: -1.6,
+      alpha: 1.0,
+      color: '#fef08a',
+      shadowColor: '#ec4899',
+      fontSize: 22
     });
   }
 
   function addScore(points) {
     score += points;
     elCurrentScore.textContent = score;
+
+    // Pop animation trigger
+    elCurrentScore.classList.remove('pop');
+    void elCurrentScore.offsetWidth;
+    elCurrentScore.classList.add('pop');
 
     if (score > highScore) {
       highScore = score;
@@ -536,6 +844,16 @@
     dangerTimer = 0;
     isGameOver = false;
     isDropCoolingDown = false;
+    comboCount = 0;
+    lastMergeTime = 0;
+    if (comboResetTimeout) {
+      clearTimeout(comboResetTimeout);
+      comboResetTimeout = null;
+    }
+    shakeIntensity = 0;
+    particles = [];
+    shockwaves = [];
+    floatingTexts = [];
 
     elCurrentScore.textContent = '0';
     elDangerLine.classList.remove('warning');
@@ -631,10 +949,11 @@
     floatingTexts.forEach(ft => {
       ctx.save();
       ctx.globalAlpha = Math.max(0, ft.alpha);
-      ctx.font = "900 20px 'Orbitron', 'Zen Kaku Gothic New', sans-serif";
+      const fontSize = ft.fontSize || 20;
+      ctx.font = `900 ${fontSize}px 'Orbitron', 'Zen Kaku Gothic New', sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#fef08a';
-      ctx.shadowColor = '#f59e0b';
+      ctx.fillStyle = ft.color || '#fef08a';
+      ctx.shadowColor = ft.shadowColor || '#f59e0b';
       ctx.shadowBlur = 14;
       ctx.fillText(ft.text, ft.x, ft.y);
       ctx.restore();
@@ -648,6 +967,18 @@
 
     // Clear Canvas
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Screen Shake Transform
+    ctx.save();
+    if (shakeIntensity > 0.1) {
+      const angle = Math.random() * Math.PI * 2;
+      const offsetX = Math.cos(angle) * shakeIntensity;
+      const offsetY = Math.sin(angle) * shakeIntensity;
+      ctx.translate(offsetX, offsetY);
+      shakeIntensity *= SHAKE_DECAY;
+    } else {
+      shakeIntensity = 0;
+    }
 
     // Draw Background Stars
     drawBackground();
@@ -673,6 +1004,8 @@
 
     updateFloatingTexts();
     renderFloatingTexts();
+
+    ctx.restore(); // Restore Shake Transform
 
     // Render Evolution Modal Canvases if visible
     if (!elInfoModal.classList.contains('hidden')) {
@@ -723,14 +1056,77 @@
     ctx.globalAlpha = 1.0;
 
     // Draw Danger Line on Canvas
-    ctx.strokeStyle = dangerTimer > 0 ? 'rgba(239, 68, 68, 0.7)' : 'rgba(255, 255, 255, 0.15)';
-    ctx.lineWidth = 1.5;
+    if (dangerTimer > 0) {
+      const pulse = Math.sin(Date.now() * 0.012) * 0.3 + 0.7;
+      ctx.strokeStyle = `rgba(239, 68, 68, ${0.9 * pulse})`;
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = '#ef4444';
+      ctx.shadowBlur = 10;
+    } else {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.lineWidth = 1.5;
+      ctx.shadowBlur = 0;
+    }
     ctx.setLineDash([6, 6]);
     ctx.beginPath();
     ctx.moveTo(0, DANGER_LINE_Y);
     ctx.lineTo(CANVAS_WIDTH, DANGER_LINE_Y);
     ctx.stroke();
     ctx.setLineDash([]);
+    ctx.shadowBlur = 0;
+
+    // Draw Visual Ground Platform
+    drawGroundPlatform();
+  }
+
+  function drawGroundPlatform() {
+    const gy = GROUND_Y;
+
+    // 1. Futuristic Base Floor Platform (Rich dark slate-indigo gradient)
+    const baseGrad = ctx.createLinearGradient(0, gy, 0, CANVAS_HEIGHT);
+    baseGrad.addColorStop(0, '#1e2942');
+    baseGrad.addColorStop(0.3, '#111827');
+    baseGrad.addColorStop(1, '#0a0f1d');
+    ctx.fillStyle = baseGrad;
+    ctx.fillRect(0, gy, CANVAS_WIDTH, CANVAS_HEIGHT - gy);
+
+    // 2. Glowing Surface Laser Beam (Cyan-Indigo-Purple Neon Gradient)
+    const beamGrad = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, 0);
+    beamGrad.addColorStop(0, '#6366f1');
+    beamGrad.addColorStop(0.25, '#38bdf8');
+    beamGrad.addColorStop(0.5, '#a855f7');
+    beamGrad.addColorStop(0.75, '#38bdf8');
+    beamGrad.addColorStop(1, '#6366f1');
+
+    ctx.save();
+    ctx.strokeStyle = beamGrad;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#38bdf8';
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.moveTo(0, gy);
+    ctx.lineTo(CANVAS_WIDTH, gy);
+    ctx.stroke();
+
+    // 3. Technical Grid Accent Hatching on the floor platform
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.lineWidth = 1.2;
+    ctx.shadowBlur = 0;
+    for (let x = 16; x < CANVAS_WIDTH; x += 24) {
+      ctx.beginPath();
+      ctx.moveTo(x, gy + 2);
+      ctx.lineTo(x - 6, CANVAS_HEIGHT);
+      ctx.stroke();
+    }
+
+    // 4. Bottom Edge Line
+    ctx.strokeStyle = 'rgba(99, 102, 241, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, CANVAS_HEIGHT - 0.5);
+    ctx.lineTo(CANVAS_WIDTH, CANVAS_HEIGHT - 0.5);
+    ctx.stroke();
+    ctx.restore();
   }
 
   function checkDangerLine() {
@@ -741,8 +1137,12 @@
 
     for (let body of bodies) {
       if (body.isPlanet && body.isDropped) {
-        const topY = body.position.y - body.circleRadius;
-        if (topY < DANGER_LINE_Y && Math.abs(body.velocity.y) < 0.4) {
+        const radius = body.circleRadius || (PLANETS[body.planetLevel] ? PLANETS[body.planetLevel].radius : 0);
+        const topY = body.position.y - radius;
+
+        // Trigger danger state if top of planet is above DANGER_LINE_Y (105)
+        // and planet is not rapidly free-falling downward (velocity.y < 2.0)
+        if (topY < DANGER_LINE_Y && body.velocity.y < 2.0) {
           isAboveDanger = true;
           break;
         }
@@ -756,7 +1156,7 @@
         triggerGameOver();
       }
     } else {
-      dangerTimer = Math.max(0, dangerTimer - 2);
+      dangerTimer = Math.max(0, dangerTimer - 1);
       if (dangerTimer === 0) {
         elDangerLine.classList.remove('warning');
       }
@@ -772,7 +1172,7 @@
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.moveTo(pointerX, DROP_SPAWN_Y);
-    ctx.lineTo(pointerX, CANVAS_HEIGHT);
+    ctx.lineTo(pointerX, GROUND_Y);
     ctx.stroke();
     ctx.setLineDash([]);
 
