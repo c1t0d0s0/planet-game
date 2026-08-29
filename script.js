@@ -891,8 +891,12 @@
   }
 
   function getRandomSpawnLevel() {
-    // Only spawn Moon, Mercury, Mars, or Venus (levels 0-3)
-    return Math.floor(Math.random() * 4);
+    // Spawn probabilities: Moon 30%, Mercury 30%, Mars 20%, Venus 20%
+    const r = Math.random();
+    if (r < 0.30) return 0; // Moon (月: 30%)
+    if (r < 0.60) return 1; // Mercury (水星: 30%)
+    if (r < 0.80) return 2; // Mars (火星: 20%)
+    return 3;               // Venus (金星: 20%)
   }
 
   function initStars() {
