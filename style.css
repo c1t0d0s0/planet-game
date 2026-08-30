@@ -352,6 +352,8 @@ html, body {
   padding: 20px;
   width: 92%;
   max-width: 440px;
+  max-height: 94vh;
+  overflow-y: auto;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   transform: translateY(0);
   transition: transform 0.3s ease;
@@ -408,6 +410,41 @@ html, body {
   border: 1px solid rgba(255, 255, 255, 0.1);
   max-height: 280px;
   overflow-y: auto;
+}
+
+/* Larger Screen Support for Help / Evolution Modal (No vertical scroll) */
+@media (min-width: 680px) {
+  #info-modal .modal-card {
+    max-width: 760px;
+    width: 90%;
+    padding: 24px 28px;
+  }
+
+  #info-modal .modal-header h2 {
+    font-size: 1.25rem;
+  }
+
+  #info-modal .info-desc {
+    font-size: 0.86rem;
+    line-height: 1.55;
+    margin-bottom: 14px;
+  }
+
+  #info-modal .evolution-grid {
+    max-height: none;
+    overflow-y: visible;
+    padding: 14px 10px;
+    gap: 8px 6px;
+  }
+
+  #info-modal .evolution-card {
+    width: 60px;
+    padding: 6px 4px;
+  }
+
+  #info-modal .modal-footer {
+    margin-top: 16px;
+  }
 }
 
 .evolution-card {
