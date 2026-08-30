@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>PLANET MERGE - 惑星合体ゲーム</title>
-  <meta name="description" content="月から太陽まで合体させてハイスコアを目指そう！スイカゲーム風の宇宙テーマ惑星合体物理パズルゲーム。">
+  <meta name="description" content="冥王星から太陽まで合体させてハイスコアを目指そう！スイカゲーム風の宇宙テーマ惑星合体物理パズルゲーム。">
   
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -84,7 +84,7 @@
       <span class="preview-label">NEXT:</span>
       <div class="next-planet-display">
         <div id="next-planet-badge" class="next-planet-badge"></div>
-        <span id="next-planet-name" class="next-planet-name">水星</span>
+        <span id="next-planet-name" class="next-planet-name">冥王星</span>
       </div>
     </div>
 
@@ -111,25 +111,27 @@
         <p class="info-desc">同じ惑星同士をぶつけると合体して1つ大きな惑星に進化します！太陽同士が合体するとブラックホールが出現し、盤面の全惑星を吸い込んで大消滅ボーナス獲得！上限ラインを超えないようにハイスコアを目指しましょう。</p>
 
         <div class="evolution-grid">
-          <div class="evolution-card"><canvas class="evo-canvas" data-level="0" width="56" height="56"></canvas><span class="evo-name">月</span><span class="evo-score">+2</span></div>
+          <div class="evolution-card"><canvas class="evo-canvas" data-level="0" width="56" height="56"></canvas><span class="evo-name">冥王星</span><span class="evo-score">+1</span></div>
           <div class="evo-arrow">→</div>
-          <div class="evolution-card"><canvas class="evo-canvas" data-level="1" width="56" height="56"></canvas><span class="evo-name">水星</span><span class="evo-score">+4</span></div>
+          <div class="evolution-card"><canvas class="evo-canvas" data-level="1" width="56" height="56"></canvas><span class="evo-name">月</span><span class="evo-score">+2</span></div>
           <div class="evo-arrow">→</div>
-          <div class="evolution-card"><canvas class="evo-canvas" data-level="2" width="56" height="56"></canvas><span class="evo-name">火星</span><span class="evo-score">+8</span></div>
+          <div class="evolution-card"><canvas class="evo-canvas" data-level="2" width="56" height="56"></canvas><span class="evo-name">水星</span><span class="evo-score">+4</span></div>
           <div class="evo-arrow">→</div>
-          <div class="evolution-card"><canvas class="evo-canvas" data-level="3" width="56" height="56"></canvas><span class="evo-name">金星</span><span class="evo-score">+16</span></div>
+          <div class="evolution-card"><canvas class="evo-canvas" data-level="3" width="56" height="56"></canvas><span class="evo-name">火星</span><span class="evo-score">+8</span></div>
           <div class="evo-arrow">→</div>
-          <div class="evolution-card"><canvas class="evo-canvas" data-level="4" width="56" height="56"></canvas><span class="evo-name">地球</span><span class="evo-score">+32</span></div>
+          <div class="evolution-card"><canvas class="evo-canvas" data-level="4" width="56" height="56"></canvas><span class="evo-name">金星</span><span class="evo-score">+16</span></div>
           <div class="evo-arrow">→</div>
-          <div class="evolution-card"><canvas class="evo-canvas" data-level="5" width="56" height="56"></canvas><span class="evo-name">海王星</span><span class="evo-score">+64</span></div>
+          <div class="evolution-card"><canvas class="evo-canvas" data-level="5" width="56" height="56"></canvas><span class="evo-name">地球</span><span class="evo-score">+32</span></div>
           <div class="evo-arrow">→</div>
-          <div class="evolution-card"><canvas class="evo-canvas" data-level="6" width="56" height="56"></canvas><span class="evo-name">天王星</span><span class="evo-score">+128</span></div>
+          <div class="evolution-card"><canvas class="evo-canvas" data-level="6" width="56" height="56"></canvas><span class="evo-name">海王星</span><span class="evo-score">+64</span></div>
           <div class="evo-arrow">→</div>
-          <div class="evolution-card"><canvas class="evo-canvas" data-level="7" width="56" height="56"></canvas><span class="evo-name">土星</span><span class="evo-score">+256</span></div>
+          <div class="evolution-card"><canvas class="evo-canvas" data-level="7" width="56" height="56"></canvas><span class="evo-name">天王星</span><span class="evo-score">+128</span></div>
           <div class="evo-arrow">→</div>
-          <div class="evolution-card"><canvas class="evo-canvas" data-level="8" width="56" height="56"></canvas><span class="evo-name">木星</span><span class="evo-score">+512</span></div>
+          <div class="evolution-card"><canvas class="evo-canvas" data-level="8" width="56" height="56"></canvas><span class="evo-name">土星</span><span class="evo-score">+256</span></div>
           <div class="evo-arrow">→</div>
-          <div class="evolution-card highlight-sun"><canvas class="evo-canvas" data-level="9" width="56" height="56"></canvas><span class="evo-name">太陽</span><span class="evo-score">+1024</span></div>
+          <div class="evolution-card"><canvas class="evo-canvas" data-level="9" width="56" height="56"></canvas><span class="evo-name">木星</span><span class="evo-score">+512</span></div>
+          <div class="evo-arrow">→</div>
+          <div class="evolution-card highlight-sun"><canvas class="evo-canvas" data-level="10" width="56" height="56"></canvas><span class="evo-name">太陽</span><span class="evo-score">+1024</span></div>
         </div>
       </div>
       <div class="modal-footer">
@@ -155,7 +157,7 @@
         </div>
         <div class="score-row">
           <span>到達レベル</span>
-          <span id="max-planet-reached" class="val planet-tag">月</span>
+          <span id="max-planet-reached" class="val planet-tag">冥王星</span>
         </div>
       </div>
 

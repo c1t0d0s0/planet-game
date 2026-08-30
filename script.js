@@ -10,6 +10,17 @@
   const PLANETS = [
     {
       level: 0,
+      name: '冥王星',
+      enName: 'Pluto',
+      radius: 11,
+      mass: 0.7,
+      color: '#a8a29e',
+      glow: '#f5f5f4',
+      score: 1,
+      details: 'pluto'
+    },
+    {
+      level: 1,
       name: '月',
       enName: 'Moon',
       radius: 15,
@@ -20,7 +31,7 @@
       details: 'moon'
     },
     {
-      level: 1,
+      level: 2,
       name: '水星',
       enName: 'Mercury',
       radius: 21,
@@ -31,7 +42,7 @@
       details: 'mercury'
     },
     {
-      level: 2,
+      level: 3,
       name: '火星',
       enName: 'Mars',
       radius: 28,
@@ -42,7 +53,7 @@
       details: 'mars'
     },
     {
-      level: 3,
+      level: 4,
       name: '金星',
       enName: 'Venus',
       radius: 36,
@@ -53,7 +64,7 @@
       details: 'venus'
     },
     {
-      level: 4,
+      level: 5,
       name: '地球',
       enName: 'Earth',
       radius: 45,
@@ -64,7 +75,7 @@
       details: 'earth'
     },
     {
-      level: 5,
+      level: 6,
       name: '海王星',
       enName: 'Neptune',
       radius: 55,
@@ -75,7 +86,7 @@
       details: 'neptune'
     },
     {
-      level: 6,
+      level: 7,
       name: '天王星',
       enName: 'Uranus',
       radius: 66,
@@ -86,7 +97,7 @@
       details: 'uranus'
     },
     {
-      level: 7,
+      level: 8,
       name: '土星',
       enName: 'Saturn',
       radius: 78,
@@ -97,7 +108,7 @@
       details: 'saturn'
     },
     {
-      level: 8,
+      level: 9,
       name: '木星',
       enName: 'Jupiter',
       radius: 90,
@@ -108,7 +119,7 @@
       details: 'jupiter'
     },
     {
-      level: 9,
+      level: 10,
       name: '太陽',
       enName: 'Sun',
       radius: 102,
@@ -159,7 +170,7 @@
   const TEXTS = {
     ja: {
       title: 'PLANET MERGE - 惑星合体ゲーム',
-      metaDesc: '駅から宇宙へ！月から太陽まで合体させてハイスコアを目指そう！スイカゲーム風の宇宙テーマ惑星合体物理パズルゲーム。',
+      metaDesc: '駅から宇宙へ！冥王星から太陽まで合体させてハイスコアを目指そう！スイカゲーム風の宇宙テーマ惑星合体物理パズルゲーム。',
       subtitle: '惑星合体ゲーム',
       soundTitle: 'サウンド切替',
       infoTitle: '遊び方',
@@ -183,7 +194,7 @@
     },
     en: {
       title: 'PLANET MERGE - Space Planet Merge Puzzle',
-      metaDesc: 'Merge cosmic planets from Moon to Sun to achieve high scores! A space-themed physics puzzle game.',
+      metaDesc: 'Merge cosmic planets from Pluto to Sun to achieve high scores! A space-themed physics puzzle game.',
       subtitle: 'Planet Merge Game',
       soundTitle: 'Sound Toggle',
       infoTitle: 'How to Play',
@@ -826,59 +837,59 @@
     // Pre-spawn a Sun and other planets at the bottom of the board for testing
     const { Bodies, World } = Matter;
 
-    // 1. Sun (Level 9) resting on ground at bottom-left
-    const sunDef = PLANETS[9];
+    // 1. Sun (Level 10) resting on ground at bottom-left
+    const sunDef = PLANETS[10];
     const sunBody = Bodies.circle(135, GROUND_Y - sunDef.radius, sunDef.radius, {
       restitution: 0.15,
       friction: 0.3,
       density: 0.002 * sunDef.mass,
       label: 'planet'
     });
-    sunBody.planetLevel = 9;
+    sunBody.planetLevel = 10;
     sunBody.isPlanet = true;
     sunBody.isDropped = true;
 
-    // 2. Jupiter (Level 8) resting on ground at bottom-right
-    const jupDef = PLANETS[8];
+    // 2. Jupiter (Level 9) resting on ground at bottom-right
+    const jupDef = PLANETS[9];
     const jupBody = Bodies.circle(325, GROUND_Y - jupDef.radius, jupDef.radius, {
       restitution: 0.15,
       friction: 0.3,
       density: 0.002 * jupDef.mass,
       label: 'planet'
     });
-    jupBody.planetLevel = 8;
+    jupBody.planetLevel = 9;
     jupBody.isPlanet = true;
     jupBody.isDropped = true;
 
-    // 3. Earth (Level 4) on top of Jupiter
-    const earthDef = PLANETS[4];
+    // 3. Earth (Level 5) on top of Jupiter
+    const earthDef = PLANETS[5];
     const earthBody = Bodies.circle(300, GROUND_Y - jupDef.radius * 2 - earthDef.radius - 8, earthDef.radius, {
       restitution: 0.15,
       friction: 0.3,
       density: 0.002 * earthDef.mass,
       label: 'planet'
     });
-    earthBody.planetLevel = 4;
+    earthBody.planetLevel = 5;
     earthBody.isPlanet = true;
     earthBody.isDropped = true;
 
-    // 4. Mars (Level 2) above Sun
-    const marsDef = PLANETS[2];
+    // 4. Mars (Level 3) above Sun
+    const marsDef = PLANETS[3];
     const marsBody = Bodies.circle(115, GROUND_Y - sunDef.radius * 2 - marsDef.radius - 8, marsDef.radius, {
       restitution: 0.15,
       friction: 0.3,
       density: 0.002 * marsDef.mass,
       label: 'planet'
     });
-    marsBody.planetLevel = 2;
+    marsBody.planetLevel = 3;
     marsBody.isPlanet = true;
     marsBody.isDropped = true;
 
     World.add(world, [sunBody, jupBody, earthBody, marsBody]);
 
     // Set queue to drop Sun next
-    currentPlanetIndex = 9;
-    nextPlanetIndex = 9;
+    currentPlanetIndex = 10;
+    nextPlanetIndex = 10;
     updateNextPlanetUI();
 
     // Show Test Mode Notice in Controls Hint
@@ -891,12 +902,13 @@
   }
 
   function getRandomSpawnLevel() {
-    // Spawn probabilities: Moon 30%, Mercury 30%, Mars 20%, Venus 20%
+    // Spawn probabilities: Pluto 24%, Moon 24%, Mercury 24%, Mars 18%, Venus 10%
     const r = Math.random();
-    if (r < 0.30) return 0; // Moon (月: 30%)
-    if (r < 0.60) return 1; // Mercury (水星: 30%)
-    if (r < 0.80) return 2; // Mars (火星: 20%)
-    return 3;               // Venus (金星: 20%)
+    if (r < 0.24) return 0; // Pluto (冥王星: 24%)
+    if (r < 0.48) return 1; // Moon (月: 24%)
+    if (r < 0.72) return 2; // Mercury (水星: 24%)
+    if (r < 0.90) return 3; // Mars (火星: 18%)
+    return 4;               // Venus (金星: 10%)
   }
 
   function initStars() {
@@ -1114,10 +1126,10 @@
             }
 
             // Grand celebration when reaching the Sun
-            if (nextLevel === 9) {
+            if (nextLevel === PLANETS.length - 1) {
               triggerSunCreationVictory(midX, midY);
             }
-          } else if (currentLevel === 9) {
+          } else if (currentLevel === PLANETS.length - 1) {
             // Merging two Suns -> Spawn Black Hole Sequence!
             triggerBlackHoleSequence(midX, midY);
           }
@@ -1139,7 +1151,7 @@
 
   function triggerSunCreationVictory(x, y) {
     playSunCreationSound();
-    triggerScreenShake(9, comboCount);
+    triggerScreenShake(10, comboCount);
     addScore(5000); // Massive bonus points!
 
     // Multi-color explosion of particles
@@ -1742,10 +1754,11 @@
       ctx = pCtx;
       const planetDef = PLANETS[level];
 
-      let previewRadius = 10 + level * 0.9;
-      if (level === 7) previewRadius = 13; // Saturn
-      if (level === 8) previewRadius = 17; // Jupiter
-      if (level === 9) previewRadius = 17; // Sun
+      let previewRadius = 9 + level * 0.85;
+      if (planetDef.details === 'pluto') previewRadius = 8;
+      if (planetDef.details === 'saturn') previewRadius = 13;
+      if (planetDef.details === 'jupiter') previewRadius = 17;
+      if (planetDef.details === 'sun') previewRadius = 17;
 
       const previewDef = { ...planetDef, radius: previewRadius };
 
@@ -2159,7 +2172,19 @@
     ctx.save();
     ctx.clip(); // Clip surface details to sphere boundary
 
-    if (detailType === 'moon') {
+    if (detailType === 'pluto') {
+      // Tombaugh Regio (Heart-shaped nitrogen ice plain) & subtle frost
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      ctx.beginPath();
+      ctx.ellipse(-r * 0.1, r * 0.05, r * 0.32, r * 0.22, Math.PI / 6, 0, Math.PI * 2);
+      ctx.ellipse(r * 0.1, r * 0.05, r * 0.3, r * 0.2, -Math.PI / 6, 0, Math.PI * 2);
+      ctx.fill();
+      // Frost crater spot
+      ctx.fillStyle = 'rgba(214, 211, 209, 0.5)';
+      ctx.beginPath();
+      ctx.arc(-r * 0.3, -r * 0.25, r * 0.15, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (detailType === 'moon') {
       // Craters
       ctx.fillStyle = 'rgba(100, 116, 139, 0.35)';
       ctx.beginPath();

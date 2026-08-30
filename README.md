@@ -10,22 +10,23 @@ A stunning, dark space-themed Suika Game (Watermelon Game) clone built with HTML
 
 Merge 2 identical celestial bodies to evolve into the next level:
 
-1. **Moon** - `+2 pts` (Small slate cratered moon)
-2. **Mercury** - `+4 pts` (Metallic gray rocky planet)
-3. **Mars** - `+8 pts` (Rusty red planet)
-4. **Venus** - `+16 pts` (Golden atmosphere planet)
-5. **Earth** - `+32 pts` (Blue ocean with continents and atmosphere rim)
-6. **Neptune** - `+64 pts` (Deep indigo gas giant)
-7. **Uranus** - `+128 pts` (Cyan icy planet)
-8. **Saturn** - `+256 pts` (3D tilted ring depth effect)
-9. **Jupiter** - `+512 pts` (Authentic ochre bands and Great Red Spot)
-10. **Sun** - `+1024 pts + 5000 BONUS` (16-ray rotating plasma flares, corona aura, fanfare victory explosion)
+1. **Pluto** - `+1 pt` (Cold icy tan dwarf planet with heart-shaped glacier)
+2. **Moon** - `+2 pts` (Small slate cratered moon)
+3. **Mercury** - `+4 pts` (Metallic gray rocky planet)
+4. **Mars** - `+8 pts` (Rusty red planet)
+5. **Venus** - `+16 pts` (Golden atmosphere planet)
+6. **Earth** - `+32 pts` (Blue ocean with continents and atmosphere rim)
+7. **Neptune** - `+64 pts` (Deep indigo gas giant)
+8. **Uranus** - `+128 pts` (Cyan icy planet)
+9. **Saturn** - `+256 pts` (3D tilted ring depth effect)
+10. **Jupiter** - `+512 pts` (Authentic ochre bands and Great Red Spot)
+11. **Sun** - `+1024 pts + 5000 BONUS` (16-ray rotating plasma flares, corona aura, fanfare victory explosion)
 
 ---
 
 ## 🕳️ Sun Merge: Black Hole & Supernova Sequence
 
-When two **Suns (Level 9) merge**, they trigger the game's ultimate cosmic event: the **Black Hole Sequence**!
+When two **Suns (Level 10) merge**, they trigger the game's ultimate cosmic event: the **Black Hole Sequence**!
 
 1. **Singularity Awakening**: A photorealistic Black Hole emerges at the collision epicenter, featuring an Event Horizon void, rotating accretion disk with relativistic Doppler beaming, photon sphere, and gravitational lensing glow.
 2. **Orbital Infall & Spaghettification**: All remaining planets on the board enter an elliptical orbital swirl, shrinking in size and emitting streaming plasma trails as they are drawn across the event horizon.
@@ -47,7 +48,7 @@ When two **Suns (Level 9) merge**, they trigger the game's ultimate cosmic event
 - **Synthesized Audio (Web Audio API)**: Real-time procedural audio synthesis without external assets (drop pop, rising pitch merge sounds, deep sub-bass gravitational drone, and Supernova fanfare).
 - **Internationalization (i18n)**: Automatic language detection (Japanese/English) with an instant header toggle button (`EN / JA`).
 - **Responsive & Touch Support**: Fully responsive UI supporting desktop mouse dragging/clicking and mobile touch gestures (`touch-action: none`).
-- **Interactive Evolution Preview Modal**: Displays live animated mini-canvas previews of all 10 celestial bodies.
+- **Interactive Evolution Preview Modal**: Displays live animated mini-canvas previews of all 11 celestial bodies.
 - **High Score Persistence**: Automatically saves your best score in browser `localStorage`.
 - **GitHub Actions Deployment**: Automated deployment to GitHub Pages upon pushing version tags (`v*`).
 
