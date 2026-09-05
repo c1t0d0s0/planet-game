@@ -1058,6 +1058,7 @@
   }
 
   function handleCollisions(event) {
+    if (isGameOver) return;
     const pairs = event.pairs;
 
     for (let i = 0; i < pairs.length; i++) {
@@ -1095,6 +1096,7 @@
 
         // Schedule removal and spawn of next planet body
         setTimeout(() => {
+          if (isGameOver) return;
           Matter.Composite.remove(world, bodyA);
           Matter.Composite.remove(world, bodyB);
 
@@ -1603,6 +1605,15 @@
     isGameOver = true;
     playGameOverSound();
 
+    // Freeze all planet physics bodies immediately
+    const allBodies = Matter.Composite.allBodies(world);
+    allBodies.forEach(body => {
+      if (body.isPlanet) {
+        Matter.Body.setVelocity(body, { x: 0, y: 0 });
+        Matter.Body.setAngularVelocity(body, 0);
+      }
+    });
+
     elFinalScore.textContent = score;
     elFinalHighScore.textContent = highScore;
     updateMaxPlanetReachedUI();
@@ -1696,8 +1707,10 @@
 
   // --- 8. RENDERING LOOP ---
   function gameLoop() {
-    // Step Matter.js Physics Engine
-    Matter.Engine.update(engine, 1000 / 60);
+    // Step Matter.js Physics Engine (only while game is active)
+    if (!isGameOver) {
+      Matter.Engine.update(engine, 1000 / 60);
+    }
 
     // Clear Canvas
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -1718,13 +1731,17 @@
     drawBackground();
 
     // Check Danger Line Status
-    checkDangerLine();
+    if (!isGameOver) {
+      checkDangerLine();
+    }
 
     // Render Physics Bodies (Planets)
     renderPlanets();
 
     // Update & Render Black Hole
-    updateBlackHole();
+    if (!isGameOver) {
+      updateBlackHole();
+    }
     drawBlackHoleVisual();
 
     // Render Drop Preview & Aim Line
@@ -1733,11 +1750,15 @@
     }
 
     // Render Shockwaves & Floating Texts
-    updateShockwaves();
+    if (!isGameOver) {
+      updateShockwaves();
+    }
     renderShockwaves();
 
     // Render Particles
-    updateParticles();
+    if (!isGameOver) {
+      updateParticles();
+    }
     renderParticles();
 
     // Render Flash Overlay if active
@@ -1751,7 +1772,9 @@
       screenFlashAlpha = 0;
     }
 
-    updateFloatingTexts();
+    if (!isGameOver) {
+      updateFloatingTexts();
+    }
     renderFloatingTexts();
 
     ctx.restore(); // Restore Shake Transform
