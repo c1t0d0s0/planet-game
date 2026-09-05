@@ -583,6 +583,11 @@ html, body {
   color: #38bdf8 !important;
 }
 
+.planet-tag.black-hole-tag {
+  color: #c084fc !important;
+  text-shadow: 0 0 10px rgba(192, 132, 252, 0.7);
+}
+
 /* Utilities */
 .hidden {
   display: none !important;

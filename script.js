@@ -187,6 +187,7 @@
       scoreLabel: 'スコア',
       bestLabel: 'ハイスコア',
       maxPlanetLabel: '到達レベル',
+      blackHoleName: 'ブラックホール',
       btnPlayAgain: 'もう一度プレイ',
       sunCreated: '☀️ 太陽誕生！ BONUS +5000',
       doubleSunMerge: '☀️☀️ 太陽合体！ ブラックホール覚醒！',
@@ -211,6 +212,7 @@
       scoreLabel: 'SCORE',
       bestLabel: 'BEST',
       maxPlanetLabel: 'HIGHEST PLANET',
+      blackHoleName: 'Black Hole',
       btnPlayAgain: 'Play Again',
       sunCreated: '☀️ SUN CREATED! BONUS +5000',
       doubleSunMerge: '☀️☀️ SUN MERGE! BLACK HOLE AWAKENS!',
@@ -236,7 +238,7 @@
     applyI18n();
     updateNextPlanetUI();
     if (elGameOverModal && !elGameOverModal.classList.contains('hidden')) {
-      elMaxPlanetReached.textContent = getPlanetDisplayName(PLANETS[maxLevelReached]);
+      updateMaxPlanetReachedUI();
     }
     renderEvolutionCanvases();
   }
@@ -288,6 +290,7 @@
     }
 
     if (btnPlayAgain) btnPlayAgain.textContent = t.btnPlayAgain;
+    updateMaxPlanetReachedUI();
 
     // Update Evolution Chart Names
     const evoCards = document.querySelectorAll('.evolution-grid .evolution-card');
@@ -338,6 +341,7 @@
   // Black Hole State
   let blackHole = null;
   let isBlackHoleActive = false;
+  let hasReachedBlackHole = false;
   let screenFlashAlpha = 0;
 
   // DOM Elements
@@ -351,6 +355,23 @@
   const elFinalScore = document.getElementById('final-score');
   const elFinalHighScore = document.getElementById('final-high-score');
   const elMaxPlanetReached = document.getElementById('max-planet-reached');
+
+  function getMaxReachedDisplayName() {
+    if (hasReachedBlackHole) {
+      return getI18N().blackHoleName;
+    }
+    return getPlanetDisplayName(PLANETS[maxLevelReached]);
+  }
+
+  function updateMaxPlanetReachedUI() {
+    if (!elMaxPlanetReached) return;
+    elMaxPlanetReached.textContent = getMaxReachedDisplayName();
+    if (hasReachedBlackHole) {
+      elMaxPlanetReached.classList.add('black-hole-tag');
+    } else {
+      elMaxPlanetReached.classList.remove('black-hole-tag');
+    }
+  }
 
   // Buttons
   const btnLang = document.getElementById('btn-lang');
@@ -1178,6 +1199,7 @@
   }
 
   function triggerBlackHoleSequence(x, y) {
+    hasReachedBlackHole = true;
     isBlackHoleActive = true;
     isDropCoolingDown = true;
     dangerTimer = 0;
@@ -1549,6 +1571,8 @@
 
     score = 0;
     maxLevelReached = 0;
+    hasReachedBlackHole = false;
+    updateMaxPlanetReachedUI();
     dangerTimer = 0;
     isGameOver = false;
     isDropCoolingDown = false;
@@ -1581,7 +1605,7 @@
 
     elFinalScore.textContent = score;
     elFinalHighScore.textContent = highScore;
-    elMaxPlanetReached.textContent = getPlanetDisplayName(PLANETS[maxLevelReached]);
+    updateMaxPlanetReachedUI();
 
     elGameOverModal.classList.remove('hidden');
   }
