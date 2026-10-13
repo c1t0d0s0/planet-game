@@ -180,7 +180,7 @@
       controlsHint: '画面をタップまたはクリックして惑星を落とそう！',
       testMode: '[テストモード: 太陽合体] 太陽を落としてブラックホールを出現させよう！',
       infoModalTitle: '遊び方 ＆ 星の進化表',
-      infoDesc: '同じ惑星同士をぶつけると合体して1つ大きな惑星に進化します！太陽同士が合体するとブラックホールが出現し、盤面の全惑星を吸い込んで大消滅ボーナス獲得！上限ラインを超えないようにハイスコアを目指しましょう。',
+      infoDesc: '同じ惑星同士をぶつけると合体して1つ大きな惑星に進化します！木星や太陽が誕生すると彗星が飛来して埋もれた冥王星や月を破壊！太陽同士が合体するとブラックホールが出現し大消滅ボーナス獲得！上限ラインを超えないようにハイスコアを目指しましょう。',
       btnStart: 'プレイ開始',
       gameOverTitle: 'GAME OVER',
       gameOverSub: '惑星が溢れてしまいました！',
@@ -191,7 +191,11 @@
       btnPlayAgain: 'もう一度プレイ',
       sunCreated: '☀️ 太陽誕生！ BONUS +5000',
       doubleSunMerge: '☀️☀️ 太陽合体！ ブラックホール覚醒！',
-      blackHoleClear: '🕳️ 超新星大爆発！ SUPER BONUS +15000'
+      blackHoleClear: '🕳️ 超新星大爆発！ SUPER BONUS +15000',
+      jupiterComet: '☄️ 木星誕生！ 彗星が接近中！',
+      sunComet: '☄️ 太陽誕生！ 彗星群が接近中！',
+      cometDestroy: '☄️ 彗星直撃！',
+      cometNoTargetBonus: '☄️ 彗星通過！ 対象不在ボーナス +'
     },
     en: {
       title: 'PLANET MERGE - Space Planet Merge Puzzle',
@@ -205,7 +209,7 @@
       controlsHint: 'Tap or click to drop planets!',
       testMode: '[TEST MODE: SUN MERGE] Drop the Sun to spawn Black Hole!',
       infoModalTitle: 'How to Play & Evolution Chart',
-      infoDesc: 'Collide matching planets to merge them into larger ones! When two Suns merge, a Black Hole spawns and sucks in all planets on screen for a massive Supernova Bonus! Keep planets below the danger line and aim for high scores.',
+      infoDesc: 'Collide matching planets to merge them into larger ones! Creating Jupiter or Sun summons comets that destroy buried Pluto/Moon! When two Suns merge, a Black Hole spawns for a massive Supernova Bonus! Keep planets below the danger line and aim for high scores.',
       btnStart: 'Start Game',
       gameOverTitle: 'GAME OVER',
       gameOverSub: 'Planets overflowed the danger line!',
@@ -216,7 +220,11 @@
       btnPlayAgain: 'Play Again',
       sunCreated: '☀️ SUN CREATED! BONUS +5000',
       doubleSunMerge: '☀️☀️ SUN MERGE! BLACK HOLE AWAKENS!',
-      blackHoleClear: '🕳️ SUPERNOVA BURST! SUPER BONUS +15000'
+      blackHoleClear: '🕳️ SUPERNOVA BURST! SUPER BONUS +15000',
+      jupiterComet: '☄️ JUPITER BORN! COMET INCOMING!',
+      sunComet: '☄️ SUN BORN! COMET SWARM INCOMING!',
+      cometDestroy: '☄️ COMET STRIKE!',
+      cometNoTargetBonus: '☄️ COMET FLYBY! NO TARGET BONUS +'
     }
   };
 
@@ -343,6 +351,10 @@
   let isBlackHoleActive = false;
   let hasReachedBlackHole = false;
   let screenFlashAlpha = 0;
+
+  // Comet Strike State
+  let activeComets = [];
+  let cometBonusActive = null;
 
   // DOM Elements
   const elCurrentScore = document.getElementById('current-score');
@@ -778,6 +790,94 @@
     } catch (e) {}
   }
 
+  function playCometLaunchSound() {
+    if (isMuted || !audioCtx) return;
+    try {
+      const now = audioCtx.currentTime;
+      // Synthesize cosmic rushing whoosh sound
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const filter = audioCtx.createBiquadFilter();
+
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(1400, now);
+      filter.frequency.exponentialRampToValueAtTime(320, now + 0.9);
+      filter.Q.setValueAtTime(3.0, now);
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(800, now);
+      osc.frequency.exponentialRampToValueAtTime(160, now + 0.9);
+
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.linearRampToValueAtTime(0.18, now + 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.95);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(sfxGain);
+
+      osc.start(now);
+      osc.stop(now + 0.95);
+    } catch (e) {}
+  }
+
+  function playCometExplosionSound() {
+    if (isMuted || !audioCtx) return;
+    try {
+      const now = audioCtx.currentTime;
+      // Heavy cosmic impact explosion
+      const osc = audioCtx.createOscillator();
+      const osc2 = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.exponentialRampToValueAtTime(38, now + 0.45);
+
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(90, now);
+      osc2.frequency.exponentialRampToValueAtTime(24, now + 0.55);
+
+      gain.gain.setValueAtTime(0.38, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+      osc.connect(gain);
+      osc2.connect(gain);
+      gain.connect(sfxGain);
+
+      osc.start(now);
+      osc2.start(now);
+      osc.stop(now + 0.6);
+      osc2.stop(now + 0.6);
+    } catch (e) {}
+  }
+
+  function playCometBonusSound() {
+    if (isMuted || !audioCtx) return;
+    try {
+      const now = audioCtx.currentTime;
+      // Celestial sparkling bonus chime (C5, G5, C6, E6, G6)
+      const freqs = [523.25, 783.99, 1046.50, 1318.51, 1567.98];
+      freqs.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const startTime = now + idx * 0.08;
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, startTime);
+
+        gain.gain.setValueAtTime(0.25, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.7);
+
+        osc.connect(gain);
+        gain.connect(sfxGain);
+
+        osc.start(startTime);
+        osc.stop(startTime + 0.7);
+      });
+    } catch (e) {}
+  }
+
   function triggerScreenShake(level, combo = 0) {
     let base = 2 + level * 1.5;
     if (level >= 7) base += 4;
@@ -855,9 +955,55 @@
     const isTestMode = window.location.search.includes('test');
     if (!isTestMode) return;
 
-    // Pre-spawn a Sun and other planets at the bottom of the board for testing
     const { Bodies, World } = Matter;
 
+    if (window.location.search.includes('test=comet') || isTestMode) {
+      // Specialized Comet Testing Preset:
+      // Buried Pluto (0) & Moon (1) at the bottom, with Saturn ready on left and Jupiter ready on right!
+      const plutoDef = PLANETS[0];
+      const moonDef = PLANETS[1];
+      const satDef = PLANETS[8];
+      const jupDef = PLANETS[9];
+
+      // 4 buried small planets right on ground
+      const p1 = Bodies.circle(55, GROUND_Y - plutoDef.radius, plutoDef.radius, { restitution: 0.15, friction: 0.3, density: 0.002 * plutoDef.mass, label: 'planet' });
+      p1.planetLevel = 0; p1.isPlanet = true; p1.isDropped = true;
+
+      const m1 = Bodies.circle(115, GROUND_Y - moonDef.radius, moonDef.radius, { restitution: 0.15, friction: 0.3, density: 0.002 * moonDef.mass, label: 'planet' });
+      m1.planetLevel = 1; m1.isPlanet = true; m1.isDropped = true;
+
+      const p2 = Bodies.circle(320, GROUND_Y - plutoDef.radius, plutoDef.radius, { restitution: 0.15, friction: 0.3, density: 0.002 * plutoDef.mass, label: 'planet' });
+      p2.planetLevel = 0; p2.isPlanet = true; p2.isDropped = true;
+
+      const m2 = Bodies.circle(385, GROUND_Y - moonDef.radius, moonDef.radius, { restitution: 0.15, friction: 0.3, density: 0.002 * moonDef.mass, label: 'planet' });
+      m2.planetLevel = 1; m2.isPlanet = true; m2.isDropped = true;
+
+      // Saturn (8) on left ground
+      const sat1 = Bodies.circle(130, GROUND_Y - satDef.radius, satDef.radius, { restitution: 0.15, friction: 0.3, density: 0.002 * satDef.mass, label: 'planet' });
+      sat1.planetLevel = 8; sat1.isPlanet = true; sat1.isDropped = true;
+
+      // Jupiter (9) on right ground
+      const jup1 = Bodies.circle(300, GROUND_Y - jupDef.radius, jupDef.radius, { restitution: 0.15, friction: 0.3, density: 0.002 * jupDef.mass, label: 'planet' });
+      jup1.planetLevel = 9; jup1.isPlanet = true; jup1.isDropped = true;
+
+      World.add(world, [p1, m1, p2, m2, sat1, jup1]);
+
+      // Provide Jupiter next (drop on right Jupiter to create SUN and launch 3 comets!)
+      currentPlanetIndex = 9;
+      // Followed by Saturn next (drop on left Saturn to create JUPITER and launch 1 comet!)
+      nextPlanetIndex = 8;
+      updateNextPlanetUI();
+
+      const elHint = document.querySelector('.controls-hint span');
+      if (elHint) {
+        elHint.textContent = '[COMET TEST] 右に落として太陽作成(彗星3発)！ 左に落として木星作成(彗星1発)！';
+        elHint.style.color = '#38bdf8';
+        elHint.style.fontWeight = 'bold';
+      }
+      return;
+    }
+
+    // Default Sun merge test
     // 1. Sun (Level 10) resting on ground at bottom-left
     const sunDef = PLANETS[10];
     const sunBody = Bodies.circle(135, GROUND_Y - sunDef.radius, sunDef.radius, {
@@ -1017,6 +1163,36 @@
       playClickSound();
       resetGame();
     });
+
+    // Keyboard Debug Shortcuts for Easy Testing
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'j' || e.key === 'J') {
+        initAudio();
+        triggerCometEvent(9);
+      } else if (e.key === 's' || e.key === 'S') {
+        initAudio();
+        triggerCometEvent(10);
+      } else if (e.key === 'p' || e.key === 'P') {
+        // Spawn a Pluto or Moon at pointerX
+        initAudio();
+        const level = Math.random() < 0.5 ? 0 : 1;
+        const pDef = PLANETS[level];
+        const pBody = Matter.Bodies.circle(pointerX, DROP_SPAWN_Y + 40, pDef.radius, {
+          restitution: 0.15,
+          friction: 0.1,
+          frictionStatic: 0.4,
+          density: 0.002 * pDef.mass,
+          label: 'planet'
+        });
+        pBody.planetLevel = level;
+        pBody.isPlanet = true;
+        pBody.isDropped = true;
+        Matter.World.add(world, pBody);
+      }
+    });
+
+    // Export test trigger for browser console debugging
+    window.triggerCometEvent = triggerCometEvent;
   }
 
   // --- 6. GAME MECHANICS & PHYSICS ---
@@ -1065,7 +1241,7 @@
       const { bodyA, bodyB } = pairs[i];
 
       if (bodyA.isPlanet && bodyB.isPlanet && bodyA.planetLevel === bodyB.planetLevel) {
-        if (bodyA.isMerging || bodyB.isMerging) continue;
+        if (bodyA.isMerging || bodyB.isMerging || bodyA.isCometTarget || bodyB.isCometTarget) continue;
 
         bodyA.isMerging = true;
         bodyB.isMerging = true;
@@ -1148,9 +1324,17 @@
               maxLevelReached = nextLevel;
             }
 
-            // Grand celebration when reaching the Sun
-            if (nextLevel === PLANETS.length - 1) {
-              triggerSunCreationVictory(midX, midY);
+            // Trigger Comet Strike Event on Jupiter (Level 9) or Sun (Level 10) creation
+            if (nextLevel === 9) {
+              triggerCometEvent(9);
+            } else if (nextLevel === 10 || nextLevel === PLANETS.length - 1) {
+              // Grand celebration when reaching the Sun
+              try {
+                triggerSunCreationVictory(midX, midY);
+              } catch (e) {
+                console.error('Error in triggerSunCreationVictory:', e);
+              }
+              triggerCometEvent(10);
             }
           } else if (currentLevel === PLANETS.length - 1) {
             // Merging two Suns -> Spawn Black Hole Sequence!
@@ -1189,7 +1373,7 @@
 
     // Floating text banner
     floatingTexts.push({
-      text: I18N.sunCreated,
+      text: getI18N().sunCreated,
       x: x,
       y: y - 20,
       vy: -1.4,
@@ -1539,6 +1723,408 @@
     ctx.restore();
   }
 
+  // ==========================================================================
+  // --- 6. COMET STRIKE SYSTEM ---
+  // Jupiter spawns 1 comet; Sun spawns up to 3 comets.
+  // Targets Pluto (0) or Moon (1), weighting deeper/buried planets higher.
+  // If no targets, awards bonus score.
+  // ==========================================================================
+
+  function triggerCometEvent(level) {
+    if (isGameOver) return;
+    const isSun = (level === 10 || level === PLANETS.length - 1);
+    const maxTargets = isSun ? 3 : 1;
+
+    // Find all Pluto (0) or Moon (1) bodies currently in world that are dropped and active
+    const candidateBodies = Matter.Composite.allBodies(world).filter(b =>
+      b.isPlanet &&
+      b.isDropped &&
+      !b.isMerging &&
+      !b.isCometTarget &&
+      (b.planetLevel === 0 || b.planetLevel === 1)
+    );
+
+    if (candidateBodies.length === 0) {
+      // No targets available -> Award bonus score
+      const bonusScore = isSun ? 6000 : 2000;
+      triggerCometNoTargetBonus(bonusScore, isSun);
+      return;
+    }
+
+    // Weighted random selection: deeper/lower planets (higher Y) have much higher probability
+    const targets = selectCometTargets(candidateBodies, maxTargets);
+
+    // Announce banner text
+    const bannerText = isSun ? getI18N().sunComet : getI18N().jupiterComet;
+    floatingTexts.push({
+      text: bannerText,
+      x: CANVAS_WIDTH / 2,
+      y: 90,
+      vy: -0.6,
+      alpha: 1.0,
+      color: '#fef08a',
+      shadowColor: '#f59e0b',
+      fontSize: 20
+    });
+
+    // Mark targets to show lock-on reticle & prevent merging
+    targets.forEach(t => {
+      t.isCometTarget = true;
+    });
+
+    // Launch comets with a steady, perceptible delay (350ms, then +450ms for each subsequent)
+    targets.forEach((targetBody, index) => {
+      const launchDelay = 400 + index * 480;
+      setTimeout(() => {
+        if (isGameOver) return;
+        launchCometAtTarget(targetBody, isSun, index);
+      }, launchDelay);
+    });
+  }
+
+  function selectCometTargets(pool, maxCount) {
+    const available = [...pool];
+    const selected = [];
+    const count = Math.min(available.length, maxCount);
+
+    for (let c = 0; c < count; c++) {
+      // Calculate weights based on Y position (depth in the container)
+      // Bottom is near GROUND_Y (~646). Higher Y = deeper down.
+      // Cubic weighting (y / CANVAS_HEIGHT)^3 strongly favors deeply buried planets.
+      const weights = available.map(b => {
+        const normY = Math.max(0.1, b.position.y / CANVAS_HEIGHT);
+        return Math.pow(normY, 3) * 1000 + 1;
+      });
+
+      const totalWeight = weights.reduce((acc, w) => acc + w, 0);
+      let rand = Math.random() * totalWeight;
+      let chosenIdx = 0;
+
+      for (let i = 0; i < available.length; i++) {
+        if (rand < weights[i]) {
+          chosenIdx = i;
+          break;
+        }
+        rand -= weights[i];
+      }
+
+      selected.push(available[chosenIdx]);
+      available.splice(chosenIdx, 1);
+    }
+
+    return selected;
+  }
+
+  function launchCometAtTarget(targetBody, isSun, index) {
+    // Determine starting position at the top outside of canvas
+    // Slight angle spread based on index and random offset
+    const startX = Math.max(30, Math.min(CANVAS_WIDTH - 30, targetBody.position.x + (Math.random() - 0.5) * 160));
+    const startY = -45;
+
+    const comet = {
+      id: Date.now() + Math.random(),
+      startX: startX,
+      startY: startY,
+      x: startX,
+      y: startY,
+      prevX: startX,
+      prevY: startY,
+      targetBody: targetBody,
+      targetX: targetBody.position.x,
+      targetY: targetBody.position.y,
+      progress: 0,
+      // Approximately 55-65 frames (~1.0s) so it moves relatively slowly and clearly
+      speed: 0.016,
+      isSunComet: isSun,
+      color: isSun ? '#fbbf24' : '#38bdf8',
+      tailParticles: []
+    };
+
+    activeComets.push(comet);
+    playCometLaunchSound();
+  }
+
+  function updateComets() {
+    for (let i = activeComets.length - 1; i >= 0; i--) {
+      const comet = activeComets[i];
+      comet.progress += comet.speed;
+
+      // Realtime homing update if target body still exists in world
+      if (comet.targetBody && Matter.Composite.allBodies(world).includes(comet.targetBody)) {
+        comet.targetX = comet.targetBody.position.x;
+        comet.targetY = comet.targetBody.position.y;
+      }
+
+      comet.prevX = comet.x;
+      comet.prevY = comet.y;
+
+      // Smooth ease-out quadratic progression so comet moves gracefully and visibly
+      const t = comet.progress;
+      const easeT = t * (2 - t);
+      comet.x = comet.startX + (comet.targetX - comet.startX) * easeT;
+      comet.y = comet.startY + (comet.targetY - comet.startY) * easeT;
+
+      // Spawn glowing comet tail particles
+      const tailColor = comet.color;
+      for (let p = 0; p < 3; p++) {
+        const spread = (Math.random() - 0.5) * 6;
+        particles.push({
+          x: comet.x + spread,
+          y: comet.y + spread,
+          vx: (Math.random() - 0.5) * 1.2 - (comet.x - comet.prevX) * 0.12,
+          vy: (Math.random() - 0.5) * 1.2 - (comet.y - comet.prevY) * 0.12,
+          radius: Math.random() * 3.5 + 2.0,
+          color: Math.random() > 0.35 ? tailColor : '#ffffff',
+          alpha: 0.9,
+          decay: 0.035
+        });
+      }
+
+      // Check impact
+      if (comet.progress >= 1.0) {
+        onCometImpact(comet);
+        activeComets.splice(i, 1);
+      }
+    }
+
+    // Update flyby bonus if active
+    if (cometBonusActive) {
+      cometBonusActive.timer++;
+      cometBonusActive.x += cometBonusActive.vx;
+      cometBonusActive.y += cometBonusActive.vy;
+
+      // Emit glittering stardust particles
+      if (Math.random() < 0.6) {
+        particles.push({
+          x: cometBonusActive.x,
+          y: cometBonusActive.y + (Math.random() - 0.5) * 8,
+          vx: -cometBonusActive.vx * 0.15 + (Math.random() - 0.5) * 1.5,
+          vy: (Math.random() - 0.5) * 1.5,
+          radius: Math.random() * 3.5 + 1.5,
+          color: Math.random() > 0.5 ? cometBonusActive.color : '#ffffff',
+          alpha: 0.95,
+          decay: 0.03
+        });
+      }
+
+      if (cometBonusActive.timer > cometBonusActive.maxTime) {
+        cometBonusActive = null;
+      }
+    }
+  }
+
+  function onCometImpact(comet) {
+    const impactX = comet.targetX;
+    const impactY = comet.targetY;
+    const targetBody = comet.targetBody;
+
+    playCometExplosionSound();
+    triggerScreenShake(7, 0);
+
+    const planetDef = targetBody && PLANETS[targetBody.planetLevel] ? PLANETS[targetBody.planetLevel] : PLANETS[0];
+    const impactColor = planetDef.color;
+
+    // Burst of debris particles & stellar sparks
+    spawnMergeParticles(impactX, impactY, impactColor, 32);
+    spawnMergeParticles(impactX, impactY, comet.color, 24);
+    spawnMergeParticles(impactX, impactY, '#ffffff', 20);
+
+    // Shockwaves
+    shockwaves.push({
+      x: impactX,
+      y: impactY,
+      radius: 6,
+      maxRadius: 180,
+      color: comet.isSunComet ? 'rgba(251, 191, 36, 0.9)' : 'rgba(56, 189, 248, 0.9)',
+      alpha: 1.0
+    });
+    shockwaves.push({
+      x: impactX,
+      y: impactY,
+      radius: 4,
+      maxRadius: 110,
+      color: 'rgba(255, 255, 255, 0.95)',
+      alpha: 1.0
+    });
+
+    // Score addition
+    const destroyPoints = 500;
+    addScore(destroyPoints);
+
+    // Safe removal of planet from physics engine
+    if (targetBody && Matter.Composite.allBodies(world).includes(targetBody)) {
+      Matter.Composite.remove(world, targetBody);
+    }
+
+    // Floating text
+    floatingTexts.push({
+      text: `${getI18N().cometDestroy} +${destroyPoints}`,
+      x: impactX,
+      y: Math.max(50, impactY - 24),
+      vy: -1.2,
+      alpha: 1.0,
+      color: comet.color,
+      shadowColor: '#ffffff',
+      fontSize: 18
+    });
+  }
+
+  function triggerCometNoTargetBonus(bonusScore, isSun) {
+    addScore(bonusScore);
+    playCometBonusSound();
+    triggerScreenShake(4, 0);
+
+    const bonusColor = isSun ? '#fbbf24' : '#38bdf8';
+
+    // Screen-center banner
+    floatingTexts.push({
+      text: `${getI18N().cometNoTargetBonus}${bonusScore}`,
+      x: CANVAS_WIDTH / 2,
+      y: CANVAS_HEIGHT / 2 - 30,
+      vy: -0.8,
+      alpha: 1.0,
+      color: '#fef08a',
+      shadowColor: bonusColor,
+      fontSize: 21
+    });
+
+    // Elegant shooting star streak crossing the sky
+    cometBonusActive = {
+      x: -60,
+      y: 90,
+      vx: 11,
+      vy: 3.5,
+      timer: 0,
+      maxTime: 65,
+      color: bonusColor
+    };
+  }
+
+  function renderCometTargets() {
+    // Render high-visibility lock-on reticles around targeted planets
+    const bodies = Matter.Composite.allBodies(world);
+    const time = Date.now() * 0.005;
+
+    for (let body of bodies) {
+      if (body.isPlanet && body.isCometTarget) {
+        const radius = (body.circleRadius || 15) + 9;
+        const x = body.position.x;
+        const y = body.position.y;
+
+        ctx.save();
+        ctx.translate(x, y);
+
+        // Pulsing warning aura
+        const pulse = Math.sin(time * 3) * 0.25 + 0.75;
+        ctx.strokeStyle = `rgba(239, 68, 68, ${0.85 * pulse})`;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#ef4444';
+        ctx.shadowBlur = 12;
+
+        // Rotating corner bracket reticle (4 brackets)
+        ctx.rotate(time);
+        for (let i = 0; i < 4; i++) {
+          ctx.rotate(Math.PI / 2);
+          ctx.beginPath();
+          ctx.arc(0, 0, radius, -0.35, 0.35);
+          ctx.stroke();
+        }
+
+        // Inner glowing target crosshair / dot
+        ctx.fillStyle = `rgba(254, 240, 138, ${0.9 * pulse})`;
+        ctx.shadowColor = '#fef08a';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(0, 0, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+  }
+
+  function renderComets() {
+    // 1. Render active flying comets
+    for (let comet of activeComets) {
+      ctx.save();
+      ctx.translate(comet.x, comet.y);
+
+      // Angle of travel
+      const dx = comet.x - comet.prevX;
+      const dy = comet.y - comet.prevY;
+      const angle = Math.atan2(dy, dx);
+      ctx.rotate(angle);
+
+      // Outer Comet Halo
+      const haloGrad = ctx.createRadialGradient(0, 0, 3, 0, 0, 24);
+      haloGrad.addColorStop(0, '#ffffff');
+      haloGrad.addColorStop(0.3, comet.color);
+      haloGrad.addColorStop(1, 'transparent');
+
+      ctx.fillStyle = haloGrad;
+      ctx.shadowColor = comet.color;
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(0, 0, 24, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Extended Plasma Tail (pointing backwards from motion)
+      const tailGrad = ctx.createLinearGradient(-35, 0, 0, 0);
+      tailGrad.addColorStop(0, 'transparent');
+      tailGrad.addColorStop(0.5, comet.color);
+      tailGrad.addColorStop(1, '#ffffff');
+
+      ctx.fillStyle = tailGrad;
+      ctx.beginPath();
+      ctx.moveTo(0, -6);
+      ctx.lineTo(-38, 0);
+      ctx.lineTo(0, 6);
+      ctx.closePath();
+      ctx.fill();
+
+      // Intense White Nuclear Core
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.arc(0, 0, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // 2. Render shooting star for flyby bonus
+    if (cometBonusActive) {
+      ctx.save();
+      ctx.translate(cometBonusActive.x, cometBonusActive.y);
+
+      const angle = Math.atan2(cometBonusActive.vy, cometBonusActive.vx);
+      ctx.rotate(angle);
+
+      const bGrad = ctx.createLinearGradient(-50, 0, 0, 0);
+      bGrad.addColorStop(0, 'transparent');
+      bGrad.addColorStop(0.5, cometBonusActive.color);
+      bGrad.addColorStop(1, '#ffffff');
+
+      ctx.fillStyle = bGrad;
+      ctx.shadowColor = cometBonusActive.color;
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.moveTo(0, -4);
+      ctx.lineTo(-55, 0);
+      ctx.lineTo(0, 4);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+  }
+
   function addScore(points) {
     score += points;
     elCurrentScore.textContent = score;
@@ -1590,6 +2176,8 @@
     particles = [];
     shockwaves = [];
     floatingTexts = [];
+    activeComets = [];
+    cometBonusActive = null;
 
     elCurrentScore.textContent = '0';
     elDangerLine.classList.remove('warning');
@@ -1737,6 +2325,15 @@
 
     // Render Physics Bodies (Planets)
     renderPlanets();
+
+    // Render Comet Lock-On Reticles on Targeted Planets
+    renderCometTargets();
+
+    // Update & Render Comets
+    if (!isGameOver) {
+      updateComets();
+    }
+    renderComets();
 
     // Update & Render Black Hole
     if (!isGameOver) {
