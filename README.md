@@ -58,10 +58,10 @@ When two **Suns (Level 10) merge**, they trigger the game's ultimate cosmic even
 
 ```text
 planet-game/
-├── index.html       # HTML structure, Matter.js CDN, modals, Gtag setup
+├── index.html       # HTML structure, Matter.js CDN, modals, GTM/GA tag setup
 ├── style.css        # Cosmic space dark theme, glassmorphism UI, grid styles
 ├── script.js        # Matter.js physics engine, Black Hole, canvas renderer, Web Audio synth
-├── config.js        # Analytics configuration (GTM_ID) - gitignored
+├── config.js        # Analytics / GTM configuration (GTM_ID) - gitignored
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml # GitHub Pages automated deployment workflow

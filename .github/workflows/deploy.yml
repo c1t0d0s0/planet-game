@@ -30,11 +30,15 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Generate config.js from GitHub Environment / Secrets
+      - name: Generate config.js and inject tracking tags
         env:
           GTM_ID: ${{ vars.GTM_ID || secrets.GTM_ID }}
         run: |
           echo "const GTM_ID = '${GTM_ID}';" > config.js
+          if [[ "${GTM_ID}" =~ ^[[:space:]]*GTM- ]]; then
+            CLEAN_ID=$(echo "${GTM_ID}" | xargs)
+            sed -i "s|<body>|<body>\n  <!-- Google Tag Manager (noscript) -->\n  <noscript><iframe src=\"https://www.googletagmanager.com/ns.html?id=${CLEAN_ID}\" height=\"0\" width=\"0\" style=\"display:none;visibility:hidden\"></iframe></noscript>\n  <!-- End Google Tag Manager (noscript) -->|" index.html
+          fi
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

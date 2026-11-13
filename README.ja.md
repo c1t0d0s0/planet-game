@@ -59,10 +59,10 @@ HTML5 Canvas、Vanilla CSS、JavaScript、および **Matter.js** 2D物理エン
 
 ```text
 planet-game/
-├── index.html       # HTML骨格、Matter.js CDN、モーダル、Gtag読み込み
+├── index.html       # HTML骨格、Matter.js CDN、モーダル、GTM/GAタグ読み込み
 ├── style.css        # 黒基調の宇宙デザイン、ガラスモルフィズムUI、進化表カード
 ├── script.js        # Matter.js 物理エンジン、ブラックホール、キャンバス描画、Web Audio音源
-├── config.js        # アナリティクス用設定（GTM_ID）※.gitignore対象
+├── config.js        # アクセス解析用設定（GTM_ID）※.gitignore対象
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml # GitHub Pages 自動デプロイ ワークフロー
